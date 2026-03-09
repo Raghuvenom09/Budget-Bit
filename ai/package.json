@@ -1,0 +1,5 @@
+{
+  "name": "budget-bit-ai",
+  "version": "1.0.0",
+  "description": "AI microservice — receipt OCR, worth-it score prediction, dish recommendation"
+}
