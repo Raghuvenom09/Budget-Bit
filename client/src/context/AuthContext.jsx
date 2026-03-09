@@ -1,44 +1,64 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { api } from "../api.js";
+import { supabase } from "../lib/supabase.js";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
-  const [loading, setLoading] = useState(true);   // checking stored token on mount
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Re-hydrate from stored token
   useEffect(() => {
-    const token = localStorage.getItem("bb_token");
-    if (!token) { setLoading(false); return; }
+    // Grab current session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-    api.auth.me()
-      .then(setUser)
-      .catch(() => localStorage.removeItem("bb_token"))
-      .finally(() => setLoading(false));
+    // Listen for auth changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = useCallback(async (email, password) => {
-    const data = await api.auth.login({ email, password });
-    localStorage.setItem("bb_token", data.token);
-    setUser(data.user);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
     return data.user;
   }, []);
 
   const register = useCallback(async (name, email, password) => {
-    const data = await api.auth.register({ name, email, password });
-    localStorage.setItem("bb_token", data.token);
-    setUser(data.user);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } },
+    });
+    if (error) throw new Error(error.message);
     return data.user;
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem("bb_token");
-    setUser(null);
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
   }, []);
 
+  // Handy derived values
+  const profile = user
+    ? {
+        id: user.id,
+        name: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "Foodie",
+        email: user.email,
+        avatar: user.user_metadata?.avatar_url ?? null,
+      }
+    : null;
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, profile, session, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
