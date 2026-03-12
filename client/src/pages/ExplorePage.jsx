@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Compass, MapPin, Star, SlidersHorizontal } from "lucide-react";
-import { restaurants, cuisines } from "../lib/mockData";
+import { cuisines } from "../lib/mockData";
+import { api } from "../api";
 import WorthItBadge from "../components/WorthItBadge";
 import ScorePill from "../components/ScorePill";
 
@@ -10,12 +11,18 @@ export default function ExplorePage() {
   const [budget, setBudget] = useState(2000);
   const [selectedCuisine, setSelectedCuisine] = useState("All");
   const [maxDist, setMaxDist] = useState(5);
+  const [restaurants, setRestaurants] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.restaurants.list().then(setRestaurants).catch(console.error).finally(() => setLoading(false));
+  }, []);
 
   const filtered = restaurants.filter(
     (r) =>
-      r.priceForTwo <= budget &&
+      (r.avg_cost ?? r.price_for_two ?? 9999) <= budget &&
       (selectedCuisine === "All" || r.cuisine === selectedCuisine) &&
-      r.distance <= maxDist
+      (r.distance ?? 0) <= maxDist
   );
 
   return (
@@ -97,7 +104,19 @@ export default function ExplorePage() {
             <span className="text-[#8C6A52] text-xs font-bold px-3 py-1.5 rounded-full" style={{ background: "#FDE8D0" }}>Sorted by Score</span>
           </div>
 
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="card-warm overflow-hidden animate-pulse">
+                  <div className="h-36" style={{ background: "#FDE8D0" }} />
+                  <div className="p-5 space-y-3">
+                    <div className="h-4 rounded" style={{ background: "#FDE8D0", width: "60%" }} />
+                    <div className="h-3 rounded" style={{ background: "#FDE8D0", width: "40%" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="card-warm py-20 text-center">
               <div className="text-6xl mb-3">🍽️</div>
               <p className="text-[#4A2E1A] text-sm font-bold">No restaurants match your filters</p>
@@ -105,53 +124,58 @@ export default function ExplorePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 stagger">
-              {[...filtered].sort((a, b) => b.worthItScore - a.worthItScore).map((r) => (
-                <div
-                  key={r.id}
-                  onClick={() => navigate(`/restaurant/${r.id}`)}
-                  className="card-warm cursor-pointer overflow-hidden"
-                >
-                  <div className="h-36 flex items-center justify-center text-7xl relative" style={{ background: "linear-gradient(135deg,#FDE8D0,#FFF0D0,#FFF8E0)" }}>
-                    <span className="float-emoji">{r.image}</span>
-                    <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-wide" style={{ background: r.tagColor }}>
-                      {r.tag}
-                    </div>
-                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-sm">
-                      <Star size={11} className="text-[#FF9F1C] fill-[#FF9F1C]" />
-                      <span className="text-[#1A0A00] text-xs font-black">{r.rating}</span>
-                    </div>
-                  </div>
-                  <div className="p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-display font-black text-[#1A0A00] text-lg truncate">{r.name}</h3>
-                        <p className="text-[#8C6A52] text-xs mt-1 flex items-center gap-1.5 flex-wrap">
-                          <span className="font-semibold">{r.cuisine}</span>
-                          <span className="w-1 h-1 rounded-full bg-[#F9C9A0]" />
-                          <MapPin size={9} className="inline" /> {r.distance} km
-                        </p>
+              {[...filtered].sort((a, b) => (b.worth_it_score ?? 0) - (a.worth_it_score ?? 0)).map((r) => {
+                const topDish = (r.top_dishes || [])[0];
+                return (
+                  <div
+                    key={r.id}
+                    onClick={() => navigate(`/restaurant/${r.id}`)}
+                    className="card-warm cursor-pointer overflow-hidden"
+                  >
+                    <div className="h-36 flex items-center justify-center text-7xl relative" style={{ background: "linear-gradient(135deg,#FDE8D0,#FFF0D0,#FFF8E0)" }}>
+                      <span className="float-emoji">{r.image_url || "🍽️"}</span>
+                      <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-wide" style={{ background: r.tag_color || "#E8360A" }}>
+                        {r.tag || r.cuisine}
                       </div>
-                      <WorthItBadge score={r.worthItScore} size="md" />
+                      <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-sm">
+                        <Star size={11} className="text-[#FF9F1C] fill-[#FF9F1C]" />
+                        <span className="text-[#1A0A00] text-xs font-black">{r.rating ?? "—"}</span>
+                      </div>
                     </div>
-                    <div className="mt-4 rounded-2xl p-3 flex items-center gap-3" style={{ background: "#FFF8F0", border: "1px solid rgba(232,54,10,0.08)" }}>
-                      <span className="text-2xl w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#FDE8D0,#FFF0D0)" }}>
-                        {r.topDishes[0].emoji}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[#8C6A52] text-[10px] font-black uppercase tracking-wider">Top Dish</p>
-                        <div className="flex items-center justify-between">
-                          <p className="text-[#1A0A00] font-bold text-sm truncate">{r.topDishes[0].name}</p>
-                          <p className="text-[#E8360A] font-black text-xs ml-2">₹{r.topDishes[0].price}</p>
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-display font-black text-[#1A0A00] text-lg truncate">{r.name}</h3>
+                          <p className="text-[#8C6A52] text-xs mt-1 flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold">{r.cuisine}</span>
+                            <span className="w-1 h-1 rounded-full bg-[#F9C9A0]" />
+                            <MapPin size={9} className="inline" /> {r.distance ?? "?"} km
+                          </p>
                         </div>
+                        <WorthItBadge score={r.worth_it_score ?? 75} size="md" />
+                      </div>
+                      {topDish && (
+                        <div className="mt-4 rounded-2xl p-3 flex items-center gap-3" style={{ background: "#FFF8F0", border: "1px solid rgba(232,54,10,0.08)" }}>
+                          <span className="text-2xl w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#FDE8D0,#FFF0D0)" }}>
+                            {topDish.emoji || "🍽️"}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[#8C6A52] text-[10px] font-black uppercase tracking-wider">Top Dish</p>
+                            <div className="flex items-center justify-between">
+                              <p className="text-[#1A0A00] font-bold text-sm truncate">{topDish.name}</p>
+                              <p className="text-[#E8360A] font-black text-xs ml-2">₹{topDish.price}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between mt-4">
+                        <span className="text-[#8C6A52] text-xs font-semibold">₹{r.avg_cost ?? r.price_for_two ?? "—"} for two</span>
+                        <ScorePill score={r.worth_it_score ?? 75} />
                       </div>
                     </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <span className="text-[#8C6A52] text-xs font-semibold">₹{r.priceForTwo} for two</span>
-                      <ScorePill score={r.worthItScore} />
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

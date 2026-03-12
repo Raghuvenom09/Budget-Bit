@@ -117,10 +117,11 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Demo hint */}
-        <div className="mt-6 text-center">
-          <p className="text-[#8C6A52] text-[11px] font-medium">
-            Demo: use any email/password to explore the app
+        {/* Forgot password link */}
+        <div className="mt-4 text-center">
+          <p className="text-[#8C6A52] text-xs font-medium">
+            New to BudgetBit?{" "}
+            <a href="/register" className="text-[#E8360A] font-bold hover:underline">Create an account</a>
           </p>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function NavBar() {
-  const { user, logout } = useAuth();
+  const { profile } = useAuth();
 
   const items = [
     { to: "/",        icon: <Home size={17} />,    label: "Home"        },
@@ -46,7 +46,7 @@ export default function NavBar() {
             </NavLink>
           ))}
 
-          {user ? (
+          {profile ? (
             <NavLink
               to="/profile"
               className={({ isActive }) =>
@@ -64,7 +64,7 @@ export default function NavBar() {
                   >
                     <User size={16} style={{ color: "#E8360A" }} />
                   </div>
-                  <span className="hidden sm:block">{user.name?.split(" ")[0] || "Profile"}</span>
+                  <span className="hidden sm:block">{profile.name?.split(" ")[0] || "Profile"}</span>
                 </>
               )}
             </NavLink>

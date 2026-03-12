@@ -1,18 +1,29 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   User, Star, Receipt, CreditCard, FileText,
   CheckCircle2, TrendingUp, Award, Settings, LogOut,
 } from "lucide-react";
-import { pastBills } from "../lib/mockData";
 import SectionHead from "../components/SectionHead";
 import { useAuth } from "../context/AuthContext";
+import { api } from "../api";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const totalSpent = pastBills.reduce((a, b) => a + b.amount, 0);
-  const totalSaved = pastBills.reduce((a, b) => a + b.saved, 0);
-  const avgRating = (pastBills.reduce((a, b) => a + b.avgRating, 0) / pastBills.length).toFixed(1);
+  const { user, profile, logout } = useAuth();
+  const [bills, setBills] = useState([]);
+
+  useEffect(() => {
+    if (user?.id) {
+      api.bills.list({ userId: user.id }).then(setBills).catch(console.error);
+    }
+  }, [user]);
+
+  const totalSpent = bills.reduce((a, b) => a + (b.amount || 0), 0);
+  const totalSaved = bills.reduce((a, b) => a + (b.saved || 0), 0);
+  const avgRating = bills.length
+    ? (bills.reduce((a, b) => a + (b.avg_rating || 0), 0) / bills.length).toFixed(1)
+    : "—";
 
   const handleLogout = () => {
     logout();
@@ -35,8 +46,8 @@ export default function ProfilePage() {
             <div className="inline-flex items-center gap-1.5 bg-white/20 text-white text-[11px] font-black px-3 py-1 rounded-full mb-2 uppercase tracking-widest">
               <Award size={11} /> Food Explorer
             </div>
-            <h1 className="font-display text-3xl font-black text-white">{user?.name || "Rahul Kumar"}</h1>
-            <p className="text-white/75 text-sm mt-1 font-medium">{user?.email || "rahul.kumar@email.com"}</p>
+            <h1 className="font-display text-3xl font-black text-white">{profile?.name || user?.email?.split("@")[0] || "Foodie"}</h1>
+            <p className="text-white/75 text-sm mt-1 font-medium">{profile?.email || ""}</p>
           </div>
         </div>
       </div>
@@ -70,42 +81,52 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Past Bills */}
       <div className="mt-10">
         <SectionHead sub="Your complete dining history">Past Bills</SectionHead>
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 stagger">
-          {pastBills.map((bill) => (
-            <div key={bill.id} className="card-warm p-5">
-              <div className="flex items-start justify-between gap-2 mb-4 pb-4 border-b-2" style={{ borderColor: "rgba(232,54,10,0.07)" }}>
-                <div>
-                  <h3 className="font-bold text-[#1A0A00] text-base">{bill.restaurant}</h3>
-                  <p className="text-[#8C6A52] text-xs mt-1 flex items-center gap-1">
-                    <FileText size={10} /> {bill.date}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-display font-black text-[#E8360A] text-lg">₹{bill.amount}</p>
-                  <div className="flex items-center gap-0.5 mt-1 justify-end">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star key={s} size={10} className={s <= Math.round(bill.avgRating) ? "text-[#FF9F1C] fill-[#FF9F1C]" : "text-[#F9C9A0] fill-[#F9C9A0]"} />
-                    ))}
+        {bills.length === 0 ? (
+          <div className="card-warm py-16 text-center">
+            <div className="text-5xl mb-3">🧻</div>
+            <p className="text-[#8C6A52] text-sm font-semibold">No bills yet — upload your first one!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 stagger">
+            {bills.map((bill) => (
+              <div key={bill.id} className="card-warm p-5">
+                <div className="flex items-start justify-between gap-2 mb-4 pb-4 border-b-2" style={{ borderColor: "rgba(232,54,10,0.07)" }}>
+                  <div>
+                    <h3 className="font-bold text-[#1A0A00] text-base">{bill.restaurants?.name || "Restaurant"}</h3>
+                    <p className="text-[#8C6A52] text-xs mt-1 flex items-center gap-1">
+                      <FileText size={10} /> {new Date(bill.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-display font-black text-[#E8360A] text-lg">₹{bill.amount}</p>
+                    {bill.avg_rating && (
+                      <div className="flex items-center gap-0.5 mt-1 justify-end">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star key={s} size={10} className={s <= Math.round(bill.avg_rating) ? "text-[#FF9F1C] fill-[#FF9F1C]" : "text-[#F9C9A0] fill-[#F9C9A0]"} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
+                {bill.dishes && (
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {bill.dishes.map((d) => (
+                      <span key={d} className="text-[#B52800] font-semibold text-[10px] px-2.5 py-1 rounded-full" style={{ background: "#FDE8D0" }}>{d}</span>
+                    ))}
+                  </div>
+                )}
+                {bill.saved > 0 && (
+                  <div className="flex items-center gap-1.5 mt-2 p-2.5 rounded-xl" style={{ background: "#DCFCE7" }}>
+                    <CheckCircle2 size={12} className="text-green-600" />
+                    <span className="text-green-700 text-[10px] font-black uppercase tracking-wide">Saved ₹{bill.saved}</span>
+                  </div>
+                )}
               </div>
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {bill.dishes.map((d) => (
-                  <span key={d} className="text-[#B52800] font-semibold text-[10px] px-2.5 py-1 rounded-full" style={{ background: "#FDE8D0" }}>{d}</span>
-                ))}
-              </div>
-              {bill.saved > 0 && (
-                <div className="flex items-center gap-1.5 mt-2 p-2.5 rounded-xl" style={{ background: "#DCFCE7" }}>
-                  <CheckCircle2 size={12} className="text-green-600" />
-                  <span className="text-green-700 text-[10px] font-black uppercase tracking-wide">Saved ₹{bill.saved}</span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Preferences */}

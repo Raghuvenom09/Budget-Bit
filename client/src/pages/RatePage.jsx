@@ -2,23 +2,54 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Star, Home, CheckCircle2 } from "lucide-react";
 import WorthItBadge from "../components/WorthItBadge";
+import { useAuth } from "../context/AuthContext";
+import { api } from "../api";
 
 export default function RatePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
 
   const dishes = location.state?.dishes?.length ? location.state.dishes : [
     { name: "Butter Chicken", price: 280 },
     { name: "Garlic Naan", price: 60 },
     { name: "Dal Makhani", price: 180 },
   ];
+  const restaurantId = location.state?.restaurantId || null;
 
   const [ratings, setRatings] = useState(dishes.map(() => ({ taste: 3, value: 3, portion: 3 })));
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
   const update = (dIdx, key, val) => setRatings((prev) => prev.map((r, i) => i === dIdx ? { ...r, [key]: val } : r));
   const overallScore = Math.round(
     ratings.reduce((acc, r) => acc + (r.taste + r.value + r.portion) / 3, 0) / ratings.length * 20
   );
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    try {
+      if (user && restaurantId) {
+        await api.reviews.create({
+          user_id: user.id,
+          restaurant_id: restaurantId,
+          dishes: dishes.map((d, i) => ({
+            name: d.name,
+            price: d.price,
+            taste: ratings[i].taste,
+            value: ratings[i].value,
+            portion: ratings[i].portion,
+          })),
+          overall_score: overallScore,
+          avg_rating: ratings.reduce((acc, r) => acc + (r.taste + r.value + r.portion) / 3, 0) / ratings.length,
+        });
+      }
+    } catch (e) {
+      console.error("Failed to save review:", e);
+    } finally {
+      setSaving(false);
+      setSubmitted(true);
+    }
+  };
 
   if (submitted) {
     return (
@@ -106,11 +137,12 @@ export default function RatePage() {
       </div>
 
       <button
-        onClick={() => setSubmitted(true)}
-        className="w-full mt-5 py-4 rounded-2xl font-bold text-base text-white shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 hover:opacity-90"
+        onClick={handleSubmit}
+        disabled={saving}
+        className="w-full mt-5 py-4 rounded-2xl font-bold text-base text-white shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-60"
         style={{ background: "linear-gradient(135deg,#E8360A,#FF9F1C)" }}
       >
-        Submit Review <CheckCircle2 size={20} />
+        {saving ? "Saving…" : <>Submit Review <CheckCircle2 size={20} /></>}
       </button>
     </div>
   );

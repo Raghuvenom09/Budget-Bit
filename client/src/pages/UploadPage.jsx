@@ -1,16 +1,22 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Camera, Image as ImageIcon, Receipt, Clock, Zap,
   CheckCircle2, Trash2, Star,
 } from "lucide-react";
-import { pastBills } from "../lib/mockData";
 import SectionHead from "../components/SectionHead";
+import { useAuth } from "../context/AuthContext";
+import { api } from "../api";
 
 export default function UploadPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const fileInputRef = useRef(null);
   const [stage, setStage] = useState("idle");
   const [dragOver, setDragOver] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [billImageUrl, setBillImageUrl] = useState(null);
+  const [savingBill, setSavingBill] = useState(false);
   const mockExtracted = [
     { name: "Butter Chicken", price: 280 },
     { name: "Garlic Naan", price: 60 },
@@ -18,11 +24,49 @@ export default function UploadPage() {
     { name: "Lassi", price: 80 },
   ];
   const [dishes, setDishes] = useState(mockExtracted);
-  const handleUpload = () => { setStage("preview"); setTimeout(() => setStage("extracted"), 1300); };
+
+  const handleFileSelected = async (file) => {
+    if (!file) return;
+    setUploadedFile(file);
+    setStage("preview");
+    // Upload image in background
+    if (user) {
+      try {
+        const url = await api.storage.uploadBillImage(user.id, file);
+        setBillImageUrl(url);
+      } catch (e) {
+        console.error("Image upload failed:", e);
+      }
+    }
+    setTimeout(() => setStage("extracted"), 1300);
+  };
+
+  const handleUpload = () => {
+    // fallback for demo click (no real file)
+    setStage("preview");
+    setTimeout(() => setStage("extracted"), 1300);
+  };
+
   const updateDish = (idx, field, val) => setDishes((prev) => prev.map((d, i) => i === idx ? { ...d, [field]: val } : d));
   const removeDish = (idx) => setDishes((prev) => prev.filter((_, i) => i !== idx));
-  const handleRate = () => {
-    // Pass extracted dishes via navigation state
+
+  const handleRate = async () => {
+    // Save bill to Supabase then go to rate page
+    if (user) {
+      setSavingBill(true);
+      try {
+        await api.bills.create({
+          user_id: user.id,
+          amount: dishes.reduce((a, d) => a + d.price, 0),
+          image_url: billImageUrl,
+          dishes: dishes.map((d) => d.name),
+        });
+      } catch (e) {
+        console.error("Bill save failed:", e);
+      } finally {
+        setSavingBill(false);
+      }
+    }
     navigate("/rate", { state: { dishes } });
   };
 
@@ -45,10 +89,10 @@ export default function UploadPage() {
         {stage === "idle" && (
           <div className="stagger">
             <div
-              onClick={handleUpload}
+              onClick={() => fileInputRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setDragOver(false); handleUpload(); }}
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFileSelected(e.dataTransfer.files[0]); }}
               className={`rounded-3xl border-2 border-dashed flex flex-col items-center justify-center py-20 cursor-pointer transition-all duration-300 ${
                 dragOver
                   ? "border-[#E8360A] bg-[#E8360A]/5"
@@ -64,17 +108,24 @@ export default function UploadPage() {
               <p className="text-[#1A0A00] font-bold text-lg">Drop your bill here or click to upload</p>
               <p className="text-[#8C6A52] text-sm mt-1.5">Supports JPG, PNG, PDF · Max 10MB</p>
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={(e) => handleFileSelected(e.target.files[0])}
+            />
 
             <div className="flex gap-3 mt-4">
               <button
-                onClick={handleUpload}
+                onClick={() => fileInputRef.current?.click()}
                 className="flex-1 py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 text-white shadow-lg transition-all active:scale-[0.98] hover:opacity-90"
                 style={{ background: "linear-gradient(135deg,#E8360A,#FF9F1C)" }}
               >
                 <Camera size={18} /> Take Photo
               </button>
               <button
-                onClick={handleUpload}
+                onClick={() => fileInputRef.current?.click()}
                 className="flex-1 py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all hover:bg-[#FDE8D0] active:scale-[0.98] border-2"
                 style={{ background: "#ffffff", color: "#E8360A", borderColor: "rgba(232,54,10,0.2)" }}
               >
@@ -84,19 +135,9 @@ export default function UploadPage() {
 
             <div className="mt-10">
               <SectionHead>Recent Bills</SectionHead>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {pastBills.slice(0, 2).map((b) => (
-                  <div key={b.id} className="card-warm p-4 flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#FDE8D0", color: "#E8360A" }}>
-                      <Receipt size={22} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-[#1A0A00] text-sm truncate">{b.restaurant}</p>
-                      <p className="text-[#8C6A52] text-xs mt-0.5 flex items-center gap-1"><Clock size={9} /> {b.date}</p>
-                    </div>
-                    <span className="text-[#E8360A] font-black text-sm">₹{b.amount}</span>
-                  </div>
-                ))}
+              <div className="card-warm p-6 text-center">
+                <div className="text-4xl mb-2">🧾</div>
+                <p className="text-[#8C6A52] text-sm font-semibold">Your past bills will appear here after uploading.</p>
               </div>
             </div>
           </div>
@@ -183,10 +224,11 @@ export default function UploadPage() {
 
             <button
               onClick={handleRate}
-              className="w-full py-4 rounded-2xl font-bold text-base text-white shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 hover:opacity-90"
+              disabled={savingBill}
+              className="w-full py-4 rounded-2xl font-bold text-base text-white shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-60"
               style={{ background: "linear-gradient(135deg,#E8360A,#FF9F1C)" }}
             >
-              Rate Your Meal <Star fill="currentColor" size={18} />
+              {savingBill ? "Saving…" : <>Rate Your Meal <Star fill="currentColor" size={18} /></>}
             </button>
           </div>
         )}

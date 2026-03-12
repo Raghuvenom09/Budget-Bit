@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search as SearchIcon, MapPin, Receipt, Star, TrendingUp, Flame, Heart, Clock,
 } from "lucide-react";
-import { restaurants, topDishFeed, cuisines } from "../lib/mockData";
+import { cuisines } from "../lib/mockData";
+import { api } from "../api";
+import { useAuth } from "../context/AuthContext";
 import WorthItBadge from "../components/WorthItBadge";
 import ScorePill from "../components/ScorePill";
 import SectionHead from "../components/SectionHead";
@@ -11,7 +13,26 @@ import SnapScanScore from "../components/SnapScanScore";
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [search, setSearch] = useState("");
+  const [restaurants, setRestaurants] = useState([]);
+  const [loadingRest, setLoadingRest] = useState(true);
+
+  useEffect(() => {
+    api.restaurants.list().then(setRestaurants).catch(console.error).finally(() => setLoadingRest(false));
+  }, []);
+
+  // Build top dish feed from real restaurant data
+  const topDishFeed = restaurants.flatMap((r) =>
+    (r.top_dishes || []).map((d) => ({
+      dish: d.name,
+      restaurant: r.name,
+      price: d.price,
+      score: r.worth_it_score ?? 75,
+      emoji: d.emoji || "🍽️",
+    }))
+  );
+
   const filtered = topDishFeed.filter(
     (d) =>
       d.dish.toLowerCase().includes(search.toLowerCase()) ||
@@ -29,7 +50,7 @@ export default function HomePage() {
 
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 bg-[#E8360A]/10 border border-[#E8360A]/20 text-[#E8360A] text-xs font-bold px-4 py-1.5 rounded-full mb-5 uppercase tracking-widest">
-            <Flame size={13} className="fill-[#E8360A]" /> Good afternoon, Rahul 👋
+            <Flame size={13} className="fill-[#E8360A]" /> Good afternoon{profile ? `, ${profile.name.split(" ")[0]}` : ""} 👋
           </div>
 
           <h1 className="font-display text-6xl font-black text-[#1A0A00] leading-[1.05] mb-4">
@@ -117,29 +138,39 @@ export default function HomePage() {
         </SectionHead>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 stagger">
-          {restaurants.slice(0, 4).map((r) => (
+          {loadingRest
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="card-warm overflow-hidden animate-pulse">
+                  <div className="h-32" style={{ background: "#FDE8D0" }} />
+                  <div className="p-4 space-y-2">
+                    <div className="h-3 rounded" style={{ background: "#FDE8D0", width: "70%" }} />
+                    <div className="h-3 rounded" style={{ background: "#FDE8D0", width: "50%" }} />
+                  </div>
+                </div>
+              ))
+            : restaurants.slice(0, 4).map((r) => (
             <div
               key={r.id}
               onClick={() => navigate(`/restaurant/${r.id}`)}
               className="card-warm cursor-pointer overflow-hidden"
             >
               <div className="h-32 flex items-center justify-center text-6xl relative" style={{ background: "linear-gradient(135deg,#FDE8D0,#FFF0D0)" }}>
-                <span className="float-emoji">{r.image}</span>
-                <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-wide" style={{ background: r.tagColor }}>
-                  {r.tag}
+                <span className="float-emoji">{r.image_url || "🍽️"}</span>
+                <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-wide" style={{ background: r.tag_color || "#E8360A" }}>
+                  {r.tag || r.cuisine}
                 </div>
                 <div className="absolute top-2 right-2">
-                  <WorthItBadge score={r.worthItScore} size="sm" />
+                  <WorthItBadge score={r.worth_it_score ?? 75} size="sm" />
                 </div>
               </div>
               <div className="p-4">
                 <h3 className="font-bold text-[#1A0A00] text-sm leading-tight truncate">{r.name}</h3>
                 <p className="text-[#8C6A52] text-[11px] mt-1 flex items-center gap-1">
-                  <MapPin size={9} /> {r.cuisine} · {r.distance} km
+                  <MapPin size={9} /> {r.cuisine} · {r.distance ?? "?"} km
                 </p>
                 <div className="flex items-center justify-between mt-3">
-                  <span className="text-[#E8360A] font-black text-xs">₹{r.priceForTwo} for 2</span>
-                  <ScorePill score={r.worthItScore} />
+                  <span className="text-[#E8360A] font-black text-xs">₹{r.avg_cost ?? r.price_for_two} for 2</span>
+                  <ScorePill score={r.worth_it_score ?? 75} />
                 </div>
               </div>
             </div>

@@ -13,6 +13,8 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [success, setSuccess] = useState(false);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -23,13 +25,35 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(name, email, password);
-      navigate("/");
+      // Supabase may require email confirmation — show success either way
+      setSuccess(true);
     } catch (err) {
       setError(err?.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
+  if (success) {
+    return (
+      <div className="min-h-[85vh] flex items-center justify-center px-4">
+        <div className="w-full max-w-md text-center card-warm p-10">
+          <div className="text-6xl mb-4">🎉</div>
+          <h2 className="font-display text-3xl font-black text-[#1A0A00] mb-3">Account Created!</h2>
+          <p className="text-[#8C6A52] text-sm mb-6">
+            Check your email <strong>{email}</strong> for a confirmation link, then sign in.
+          </p>
+          <button
+            onClick={() => navigate("/login")}
+            className="px-8 py-3 rounded-2xl font-bold text-white text-sm transition-all hover:opacity-90"
+            style={{ background: "linear-gradient(135deg,#E8360A,#FF9F1C)" }}
+          >
+            Go to Sign In
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center px-4">
