@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Camera, Image as ImageIcon, Receipt, Clock, Zap,
-  CheckCircle2, Trash2, Star,
+  CheckCircle2, Trash2, Star, MapPin, Calendar, Search,
+  ShieldCheck, ChevronDown,
 } from "lucide-react";
 import SectionHead from "../components/SectionHead";
 import { useAuth } from "../context/AuthContext";
@@ -12,24 +13,86 @@ export default function UploadPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const fileInputRef = useRef(null);
-  const [stage, setStage] = useState("idle");
+  const cameraInputRef = useRef(null);
+
+  const [stage, setStage] = useState("idle"); // idle → preview → extracted
   const [dragOver, setDragOver] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [billImageUrl, setBillImageUrl] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [savingBill, setSavingBill] = useState(false);
-  const mockExtracted = [
-    { name: "Butter Chicken", price: 280 },
-    { name: "Garlic Naan", price: 60 },
-    { name: "Dal Makhani", price: 180 },
-    { name: "Lassi", price: 80 },
-  ];
-  const [dishes, setDishes] = useState(mockExtracted);
+  const [ocrError, setOcrError] = useState(null);
+  const [dishes, setDishes] = useState([]);
+  const [scanProgress, setScanProgress] = useState(0);
+
+  // ── OCR metadata ────────────────────────────────────────────────────────────
+  const [ocrRestaurant, setOcrRestaurant] = useState(null);
+  const [ocrDate, setOcrDate] = useState(null);
+  const [ocrTotal, setOcrTotal] = useState(null);
+  const [ocrConfidence, setOcrConfidence] = useState(null);
+
+  // ── Restaurant matching ─────────────────────────────────────────────────────
+  const [matchedRestaurant, setMatchedRestaurant] = useState(null);
+  const [restaurantResults, setRestaurantResults] = useState([]);
+  const [restaurantSearch, setRestaurantSearch] = useState("");
+  const [showRestaurantPicker, setShowRestaurantPicker] = useState(false);
+
+  // Fuzzy-match OCR restaurant name against DB
+  const matchRestaurant = async (name) => {
+    if (!name) return;
+    try {
+      const all = await api.restaurants.list({});
+      // Simple substring match (case-insensitive)
+      const lower = name.toLowerCase();
+      const exact = all.find((r) => r.name.toLowerCase() === lower);
+      if (exact) { setMatchedRestaurant(exact); return; }
+      const partial = all.find((r) =>
+        r.name.toLowerCase().includes(lower) || lower.includes(r.name.toLowerCase())
+      );
+      if (partial) { setMatchedRestaurant(partial); return; }
+      // No match — store all for user to pick
+      setRestaurantResults(all);
+      setRestaurantSearch(name);
+      setShowRestaurantPicker(true);
+    } catch (e) {
+      console.error("Restaurant match failed:", e);
+    }
+  };
+
+  // Search restaurants when user types in the picker
+  useEffect(() => {
+    if (!showRestaurantPicker || !restaurantSearch) return;
+    const timeout = setTimeout(async () => {
+      try {
+        const results = await api.restaurants.list({ search: restaurantSearch });
+        setRestaurantResults(results);
+      } catch { /* ignore */ }
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [restaurantSearch, showRestaurantPicker]);
 
   const handleFileSelected = async (file) => {
     if (!file) return;
     setUploadedFile(file);
+    setOcrError(null);
+    setOcrRestaurant(null);
+    setOcrDate(null);
+    setOcrTotal(null);
+    setOcrConfidence(null);
+    setMatchedRestaurant(null);
+    setShowRestaurantPicker(false);
     setStage("preview");
-    // Upload image in background
+
+    // Create local preview
+    setImagePreview(URL.createObjectURL(file));
+
+    // Fake progress while waiting
+    setScanProgress(0);
+    const progressInterval = setInterval(() => {
+      setScanProgress((p) => (p >= 90 ? 90 : p + Math.random() * 15));
+    }, 400);
+
+    // Upload image to Supabase storage in background
     if (user) {
       try {
         const url = await api.storage.uploadBillImage(user.id, file);
@@ -38,19 +101,46 @@ export default function UploadPage() {
         console.error("Image upload failed:", e);
       }
     }
-    setTimeout(() => setStage("extracted"), 1300);
+
+    // Call Gemini OCR to extract everything from the bill
+    try {
+      const result = await api.ai.ocr(file);
+
+      // Store all metadata
+      setOcrRestaurant(result.restaurant || null);
+      setOcrDate(result.date || null);
+      setOcrTotal(result.total || null);
+      setOcrConfidence(result.confidence ?? null);
+
+      const extracted = (result.items || []).map((item) => ({
+        name: item.name || "",
+        price: Number(item.price) || 0,
+        qty: Number(item.qty) || 1,
+      }));
+      setDishes(extracted.length ? extracted : [{ name: "", price: 0, qty: 1 }]);
+
+      // Try to match restaurant from OCR
+      if (result.restaurant) {
+        await matchRestaurant(result.restaurant);
+      }
+    } catch (e) {
+      console.error("OCR failed:", e);
+      setOcrError("Couldn't read the bill automatically — please enter items manually.");
+      setDishes([{ name: "", price: 0, qty: 1 }]);
+    }
+
+    clearInterval(progressInterval);
+    setScanProgress(100);
+    setStage("extracted");
   };
 
-  const handleUpload = () => {
-    // fallback for demo click (no real file)
-    setStage("preview");
-    setTimeout(() => setStage("extracted"), 1300);
-  };
-
-  const updateDish = (idx, field, val) => setDishes((prev) => prev.map((d, i) => i === idx ? { ...d, [field]: val } : d));
+  const addDish = () => setDishes((prev) => [...prev, { name: "", price: 0, qty: 1 }]);
+  const updateDish = (idx, field, val) => setDishes((prev) => prev.map((d, i) => (i === idx ? { ...d, [field]: val } : d)));
   const removeDish = (idx) => setDishes((prev) => prev.filter((_, i) => i !== idx));
 
   const handleRate = async () => {
+    const restaurantId = matchedRestaurant?.id || null;
+
     // Save bill to Supabase then go to rate page
     if (user) {
       setSavingBill(true);
@@ -60,6 +150,7 @@ export default function UploadPage() {
           amount: dishes.reduce((a, d) => a + d.price, 0),
           image_url: billImageUrl,
           dishes: dishes.map((d) => d.name),
+          restaurant_id: restaurantId,
         });
       } catch (e) {
         console.error("Bill save failed:", e);
@@ -67,8 +158,19 @@ export default function UploadPage() {
         setSavingBill(false);
       }
     }
-    navigate("/rate", { state: { dishes } });
+    navigate("/rate", {
+      state: {
+        dishes,
+        restaurantId,
+        restaurantName: matchedRestaurant?.name || ocrRestaurant || null,
+      },
+    });
   };
+
+  // Cleanup preview URL on unmount
+  useEffect(() => {
+    return () => { if (imagePreview) URL.revokeObjectURL(imagePreview); };
+  }, [imagePreview]);
 
   return (
     <div className="pb-16 w-full max-w-4xl mx-auto">
@@ -115,10 +217,18 @@ export default function UploadPage() {
               className="hidden"
               onChange={(e) => handleFileSelected(e.target.files[0])}
             />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => handleFileSelected(e.target.files[0])}
+            />
 
             <div className="flex gap-3 mt-4">
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => cameraInputRef.current?.click()}
                 className="flex-1 py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 text-white shadow-lg transition-all active:scale-[0.98] hover:opacity-90"
                 style={{ background: "linear-gradient(135deg,#E8360A,#FF9F1C)" }}
               >
@@ -144,42 +254,184 @@ export default function UploadPage() {
         )}
 
         {stage === "preview" && (
-          <div className="flex flex-col items-center py-20 card-warm">
-            <div className="relative mb-6">
-              <div
-                className="w-20 h-20 rounded-full flex items-center justify-center shadow-xl animate-pulse"
-                style={{ background: "linear-gradient(135deg,#E8360A,#FF9F1C)" }}
-              >
-                <Receipt size={36} className="text-white" />
+          <div className="card-warm p-6">
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              {/* Bill image preview */}
+              {imagePreview && (
+                <div className="w-32 h-44 rounded-2xl overflow-hidden border-2 flex-shrink-0 shadow-lg" style={{ borderColor: "rgba(232,54,10,0.15)" }}>
+                  <img src={imagePreview} alt="Bill" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className="flex-1 text-center sm:text-left">
+                <div className="relative mb-4">
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center shadow-xl animate-pulse mx-auto sm:mx-0"
+                    style={{ background: "linear-gradient(135deg,#E8360A,#FF9F1C)" }}
+                  >
+                    <Receipt size={28} className="text-white" />
+                  </div>
+                </div>
+                <p className="text-[#1A0A00] font-bold text-lg mb-1">Scanning your bill…</p>
+                <p className="text-[#8C6A52] text-sm mb-4">AI is extracting dishes, prices &amp; restaurant info</p>
+
+                {/* Progress bar */}
+                <div className="w-full bg-[#FDE8D0] rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500 ease-out"
+                    style={{
+                      width: `${scanProgress}%`,
+                      background: "linear-gradient(135deg,#E8360A,#FF9F1C)",
+                    }}
+                  />
+                </div>
+                <p className="text-[#8C6A52] text-xs mt-2 font-semibold">{Math.round(scanProgress)}% complete</p>
               </div>
-            </div>
-            <p className="text-[#1A0A00] font-bold text-lg mb-1">Reading your bill…</p>
-            <p className="text-[#8C6A52] text-sm mb-6">Extracting dishes &amp; prices with AI</p>
-            <div className="flex gap-2">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="w-2.5 h-2.5 rounded-full boop" style={{ background: "#E8360A", animationDelay: `${i * 0.2}s` }} />
-              ))}
             </div>
           </div>
         )}
 
         {stage === "extracted" && (
           <div className="stagger">
-            <div className="card-warm p-5 flex items-center gap-4 mb-6 border-2" style={{ borderColor: "rgba(22,163,74,0.2)" }}>
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#DCFCE7" }}>
-                <CheckCircle2 size={24} className="text-green-600" />
+            {/* ── Scan result banner ─────────────────────────────────────── */}
+            {ocrError ? (
+              <div className="card-warm p-5 flex items-center gap-4 mb-6 border-2" style={{ borderColor: "rgba(234,179,8,0.35)" }}>
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#FEF9C3" }}>
+                  <span className="text-2xl">⚠️</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-[#1A0A00] font-bold text-sm">Couldn't auto-read the bill</p>
+                  <p className="text-[#8C6A52] text-xs mt-0.5">{ocrError}</p>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="text-[#1A0A00] font-bold text-sm">Bill extracted successfully!</p>
-                <p className="text-[#8C6A52] text-xs mt-0.5">Spice Garden · 24 Feb 2026 · 8:32 PM</p>
+            ) : (
+              <div className="card-warm p-5 flex items-center gap-4 mb-6 border-2" style={{ borderColor: "rgba(22,163,74,0.2)" }}>
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#DCFCE7" }}>
+                  <CheckCircle2 size={24} className="text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[#1A0A00] font-bold text-sm">Bill scanned with AI!</p>
+                  <p className="text-[#8C6A52] text-xs mt-0.5">{dishes.length} items detected — review &amp; edit below</p>
+                </div>
+                {ocrConfidence !== null && (
+                  <div className="flex flex-col items-center">
+                    <span className="text-green-600 text-lg font-black">{Math.round(ocrConfidence * 100)}%</span>
+                    <span className="text-[#8C6A52] text-[10px] font-bold uppercase tracking-wider">Accuracy</span>
+                  </div>
+                )}
               </div>
-              <span className="text-green-600 text-xs font-black uppercase tracking-wider">✓ Done</span>
+            )}
+
+            {/* ── Restaurant & Bill info card ────────────────────────────── */}
+            <div className="card-warm p-5 mb-6">
+              <div className="flex gap-4">
+                {/* Bill thumbnail */}
+                {imagePreview && (
+                  <div className="w-20 h-28 rounded-xl overflow-hidden border-2 flex-shrink-0 shadow-md" style={{ borderColor: "rgba(232,54,10,0.1)" }}>
+                    <img src={imagePreview} alt="Bill" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  {/* Restaurant name from OCR */}
+                  {matchedRestaurant ? (
+                    <div className="flex items-center gap-2 mb-2">
+                      <MapPin size={14} className="text-[#E8360A] flex-shrink-0" />
+                      <span className="font-bold text-[#1A0A00] text-sm truncate">{matchedRestaurant.name}</span>
+                      <span className="text-green-600 text-[10px] font-bold uppercase bg-green-50 px-2 py-0.5 rounded-full flex-shrink-0">Matched</span>
+                    </div>
+                  ) : ocrRestaurant ? (
+                    <div className="flex items-center gap-2 mb-2">
+                      <MapPin size={14} className="text-[#E8360A] flex-shrink-0" />
+                      <span className="font-bold text-[#1A0A00] text-sm truncate">{ocrRestaurant}</span>
+                      <button
+                        onClick={() => setShowRestaurantPicker(true)}
+                        className="text-[#E8360A] text-[10px] font-bold uppercase bg-[#FDE8D0] px-2 py-0.5 rounded-full flex-shrink-0 hover:bg-[#FDD8B0] transition-colors"
+                      >Link</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 mb-2">
+                      <MapPin size={14} className="text-[#8C6A52] flex-shrink-0" />
+                      <button
+                        onClick={() => setShowRestaurantPicker(true)}
+                        className="text-[#E8360A] text-xs font-bold hover:underline"
+                      >+ Select Restaurant</button>
+                    </div>
+                  )}
+
+                  {/* Date */}
+                  {ocrDate && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <Calendar size={14} className="text-[#8C6A52] flex-shrink-0" />
+                      <span className="text-[#8C6A52] text-xs font-semibold">{ocrDate}</span>
+                    </div>
+                  )}
+
+                  {/* OCR Total vs calculated */}
+                  {ocrTotal != null && ocrTotal > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Receipt size={14} className="text-[#8C6A52] flex-shrink-0" />
+                      <span className="text-[#8C6A52] text-xs font-semibold">
+                        Bill total: <span className="text-[#E8360A] font-black">₹{ocrTotal}</span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
+            {/* ── Restaurant Picker Modal ──────────────────────────────── */}
+            {showRestaurantPicker && (
+              <div className="card-warm p-5 mb-6 border-2" style={{ borderColor: "rgba(232,54,10,0.15)" }}>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-bold text-[#1A0A00] text-sm flex items-center gap-2">
+                    <Search size={14} /> Select Restaurant
+                  </h4>
+                  <button
+                    onClick={() => setShowRestaurantPicker(false)}
+                    className="text-[#8C6A52] text-xs font-bold hover:text-[#E8360A]"
+                  >✕ Close</button>
+                </div>
+                <div className="relative mb-3">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8C6A52]" />
+                  <input
+                    type="text"
+                    value={restaurantSearch}
+                    onChange={(e) => setRestaurantSearch(e.target.value)}
+                    placeholder="Search restaurants…"
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-[#FFF8F0] border-2 text-sm font-semibold text-[#1A0A00] focus:outline-none focus:border-[#E8360A]/40 transition-colors"
+                    style={{ borderColor: "rgba(232,54,10,0.1)" }}
+                  />
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-1.5">
+                  {restaurantResults.length === 0 ? (
+                    <p className="text-[#8C6A52] text-xs text-center py-3 font-medium">No restaurants found</p>
+                  ) : restaurantResults.map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => {
+                        setMatchedRestaurant(r);
+                        setShowRestaurantPicker(false);
+                      }}
+                      className="w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 hover:bg-[#FDE8D0] transition-colors"
+                    >
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base" style={{ background: "linear-gradient(135deg,#FDE8D0,#FFF0D0)" }}>🍽️</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-[#1A0A00] text-xs truncate">{r.name}</p>
+                        <p className="text-[#8C6A52] text-[10px]">{r.cuisine} · ₹{r.avg_cost} avg</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowRestaurantPicker(false)}
+                  className="w-full mt-3 py-2 rounded-xl text-[#8C6A52] text-xs font-bold hover:bg-[#FDE8D0] transition-colors"
+                >Skip — Continue without restaurant</button>
+              </div>
+            )}
+
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-[#1A0A00] text-base">{dishes.length} items found</h3>
+              <h3 className="font-bold text-[#1A0A00] text-base">{dishes.length} item{dishes.length !== 1 ? "s" : ""} found</h3>
               <button
-                onClick={() => setDishes([...dishes, { name: "New Item", price: 0 }])}
+                onClick={addDish}
                 className="text-[#E8360A] text-xs font-bold px-3 py-1.5 rounded-full transition-colors hover:bg-[#FDE8D0]"
                 style={{ background: "rgba(232,54,10,0.08)" }}
               >+ Add Item</button>

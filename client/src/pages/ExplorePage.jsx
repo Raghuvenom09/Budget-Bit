@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Compass, MapPin, Star, SlidersHorizontal } from "lucide-react";
+import { Compass, MapPin, Star, SlidersHorizontal, Sparkles } from "lucide-react";
 import { cuisines } from "../lib/mockData";
 import { api } from "../api";
 import WorthItBadge from "../components/WorthItBadge";
@@ -13,10 +13,32 @@ export default function ExplorePage() {
   const [maxDist, setMaxDist] = useState(5);
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [aiPicks, setAiPicks] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     api.restaurants.list().then(setRestaurants).catch(console.error).finally(() => setLoading(false));
   }, []);
+
+  // Fetch AI dish recommendations whenever budget or cuisine changes
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      setAiLoading(true);
+      try {
+        const res = await api.ai.recommend({
+          budget: Math.round(budget / 2), // per-dish budget = half of "for two"
+          cuisines: selectedCuisine === "All" ? [] : [selectedCuisine],
+          city: "Bangalore",
+        });
+        setAiPicks(res.recommendations || []);
+      } catch {
+        setAiPicks([]);
+      } finally {
+        setAiLoading(false);
+      }
+    }, 600); // debounce
+    return () => clearTimeout(timer);
+  }, [budget, selectedCuisine]);
 
   const filtered = restaurants.filter(
     (r) =>
@@ -97,6 +119,45 @@ export default function ExplorePage() {
 
         {/* Results */}
         <div className="flex-1">
+          {/* ── Gemini AI Picks ─────────────────────────────── */}
+          {(aiPicks.length > 0 || aiLoading) && (
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles size={16} className="text-[#E8360A]" />
+                <p className="font-bold text-[#1A0A00] text-sm">
+                  AI-Recommended Dishes{selectedCuisine !== "All" ? ` · ${selectedCuisine}` : ""} · Under ₹{Math.round(budget / 2)} each
+                </p>
+              </div>
+              {aiLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="card-warm p-4 animate-pulse h-20" style={{ background: "#FFF8F0" }} />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {aiPicks.map((pick, i) => (
+                    <div key={i} className="card-warm p-4 flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0" style={{ background: "linear-gradient(135deg,#FDE8D0,#FFF0D0)" }}>
+                        🍽️
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-[#1A0A00] text-sm truncate">{pick.dish}</p>
+                        <p className="text-[#8C6A52] text-[10px] truncate mt-0.5">{pick.restaurant}</p>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="text-[#E8360A] font-black text-xs">₹{pick.price}</span>
+                          <ScorePill score={pick.score} />
+                        </div>
+                        {pick.reason && <p className="text-[#8C6A52] text-[9px] mt-1 leading-tight line-clamp-1">{pick.reason}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-4 border-b-2 border-dashed" style={{ borderColor: "rgba(232,54,10,0.1)" }} />
+            </div>
+          )}
+
           <div className="flex items-center justify-between mb-5">
             <p className="text-[#8C6A52] text-sm font-semibold">
               <span className="text-[#1A0A00] font-black text-base">{filtered.length}</span> restaurants found

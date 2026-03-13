@@ -20,14 +20,42 @@ export default function RatePage() {
   const [ratings, setRatings] = useState(dishes.map(() => ({ taste: 3, value: 3, portion: 3 })));
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [aiScore, setAiScore] = useState(null);
   const update = (dIdx, key, val) => setRatings((prev) => prev.map((r, i) => i === dIdx ? { ...r, [key]: val } : r));
-  const overallScore = Math.round(
-    ratings.reduce((acc, r) => acc + (r.taste + r.value + r.portion) / 3, 0) / ratings.length * 20
-  );
+
+  // Live preview score 0-100: average of all (taste+value+portion)/3, scaled ×20
+  const previewScore = ratings.length
+    ? Math.round(
+        (ratings.reduce((acc, r) => acc + (r.taste + r.value + r.portion) / 3, 0) / ratings.length) * 20
+      )
+    : 60;
+  const overallScore = aiScore ?? previewScore;
 
   const handleSubmit = async () => {
     setSaving(true);
     try {
+      // Ask Gemini to score each dish, then average
+      let finalScore = previewScore;
+      try {
+        const scores = await Promise.all(
+          dishes.map((d, i) =>
+            api.ai.score({
+              dish_name: d.name,
+              price: d.price,
+              cuisine: "Indian",
+              city: "India",
+              taste: ratings[i].taste,
+              value: ratings[i].value,
+              portion: ratings[i].portion,
+            }).then((r) => r.score ?? previewScore)
+          )
+        );
+        finalScore = Math.round(scores.reduce((a, s) => a + s, 0) / scores.length);
+      } catch {
+        // AI service unreachable — use local heuristic
+      }
+      setAiScore(finalScore);
+
       if (user && restaurantId) {
         await api.reviews.create({
           user_id: user.id,
@@ -39,7 +67,7 @@ export default function RatePage() {
             value: ratings[i].value,
             portion: ratings[i].portion,
           })),
-          overall_score: overallScore,
+          overall_score: finalScore,
           avg_rating: ratings.reduce((acc, r) => acc + (r.taste + r.value + r.portion) / 3, 0) / ratings.length,
         });
       }

@@ -100,4 +100,41 @@ export const api = {
             return data.publicUrl;
         },
     },
+
+    // ── AI microservice (FastAPI @ localhost:8000) ────────────────────────────────
+    ai: {
+        /** Scan a receipt image → [{name, qty, price}] */
+        ocr: async (file) => {
+            const fd = new FormData();
+            fd.append("file", file);
+            const res = await fetch("http://localhost:8000/ai/ocr/scan", {
+                method: "POST",
+                body: fd,
+            });
+            if (!res.ok) throw new Error(`OCR error ${res.status}`);
+            return res.json();
+        },
+
+        /** Get a Worth-It score for a dish */
+        score: async (body) => {
+            const res = await fetch("http://localhost:8000/ai/score/predict", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) throw new Error(`Score error ${res.status}`);
+            return res.json();
+        },
+
+        /** Get personalised dish recommendations */
+        recommend: async (body) => {
+            const res = await fetch("http://localhost:8000/ai/recommend/dishes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) throw new Error(`Recommend error ${res.status}`);
+            return res.json();
+        },
+    },
 };

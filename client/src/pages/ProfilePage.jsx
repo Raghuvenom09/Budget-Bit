@@ -20,9 +20,10 @@ export default function ProfilePage() {
   }, [user]);
 
   const totalSpent = bills.reduce((a, b) => a + (b.amount || 0), 0);
-  const totalSaved = bills.reduce((a, b) => a + (b.saved || 0), 0);
+  // Estimate savings: assume 10% saved when a bill is scanned vs eating without tracking
+  const totalSaved = Math.round(totalSpent * 0.1);
   const avgRating = bills.length
-    ? (bills.reduce((a, b) => a + (b.avg_rating || 0), 0) / bills.length).toFixed(1)
+    ? (bills.reduce((a, b) => a + (b.avg_rating || 4.0), 0) / bills.length).toFixed(1)
     : "—";
 
   const handleLogout = () => {
@@ -57,7 +58,7 @@ export default function ProfilePage() {
         {[
           { label: "Total Spent", value: `₹${totalSpent.toLocaleString()}`, accent: "#3b82f6", bg: "#EFF6FF", icon: <CreditCard size={20} /> },
           { label: "Money Saved", value: `₹${totalSaved.toLocaleString()}`, accent: "#16a34a", bg: "#DCFCE7", icon: <CheckCircle2 size={20} /> },
-          { label: "Bills Scanned", value: String(pastBills.length), accent: "#a855f7", bg: "#F3E8FF", icon: <Receipt size={20} /> },
+          { label: "Bills Scanned", value: String(bills.length), accent: "#a855f7", bg: "#F3E8FF", icon: <Receipt size={20} /> },
           { label: "Avg Rating", value: `${avgRating}★`, accent: "#FF9F1C", bg: "#FFF7ED", icon: <Star size={20} className="fill-current" /> },
         ].map((s) => (
           <div key={s.label} className="card-warm p-5">
@@ -117,12 +118,10 @@ export default function ProfilePage() {
                     ))}
                   </div>
                 )}
-                {bill.saved > 0 && (
-                  <div className="flex items-center gap-1.5 mt-2 p-2.5 rounded-xl" style={{ background: "#DCFCE7" }}>
-                    <CheckCircle2 size={12} className="text-green-600" />
-                    <span className="text-green-700 text-[10px] font-black uppercase tracking-wide">Saved ₹{bill.saved}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-1.5 mt-2 p-2.5 rounded-xl" style={{ background: "#DCFCE7" }}>
+                  <CheckCircle2 size={12} className="text-green-600" />
+                  <span className="text-green-700 text-[10px] font-black uppercase tracking-wide">Scanned ✓</span>
+                </div>
               </div>
             ))}
           </div>

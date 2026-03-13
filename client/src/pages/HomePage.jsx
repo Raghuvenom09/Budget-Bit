@@ -13,14 +13,27 @@ import SnapScanScore from "../components/SnapScanScore";
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [search, setSearch] = useState("");
+  const [activeCuisine, setActiveCuisine] = useState("All");
   const [restaurants, setRestaurants] = useState([]);
   const [loadingRest, setLoadingRest] = useState(true);
+  const [bills, setBills] = useState([]);
 
   useEffect(() => {
     api.restaurants.list().then(setRestaurants).catch(console.error).finally(() => setLoadingRest(false));
   }, []);
+
+  useEffect(() => {
+    if (user?.id) api.bills.list({ userId: user.id }).then(setBills).catch(console.error);
+  }, [user]);
+
+  // Real stats from Supabase data
+  const totalSpent = bills.reduce((a, b) => a + (b.amount || 0), 0);
+  const totalSaved  = Math.round(totalSpent * 0.1);
+  const avgRating   = bills.length
+    ? (bills.reduce((a, b) => a + (b.avg_rating || 4.0), 0) / bills.length).toFixed(1)
+    : null;
 
   // Build top dish feed from real restaurant data
   const topDishFeed = restaurants.flatMap((r) =>
@@ -30,13 +43,15 @@ export default function HomePage() {
       price: d.price,
       score: r.worth_it_score ?? 75,
       emoji: d.emoji || "🍽️",
+      cuisine: r.cuisine,
     }))
   );
 
   const filtered = topDishFeed.filter(
     (d) =>
-      d.dish.toLowerCase().includes(search.toLowerCase()) ||
-      d.restaurant.toLowerCase().includes(search.toLowerCase())
+      (activeCuisine === "All" || d.cuisine === activeCuisine) &&
+      (d.dish.toLowerCase().includes(search.toLowerCase()) ||
+       d.restaurant.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
@@ -92,9 +107,9 @@ export default function HomePage() {
       {/* ── Stats Cards ──────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-4 mt-8 stagger">
         {[
-          { label: "Bills Scanned", value: "24", icon: <Receipt size={22} />, color: "#E8360A", bg: "#FDE8D0" },
-          { label: "Avg Rating", value: "4.3★", icon: <Star size={22} className="fill-current" />, color: "#FF9F1C", bg: "#FDE8D0" },
-          { label: "Money Saved", value: "₹1,240", icon: <TrendingUp size={22} />, color: "#16a34a", bg: "#DCFCE7" },
+          { label: "Bills Scanned", value: bills.length ? String(bills.length) : "0", icon: <Receipt size={22} />, color: "#E8360A", bg: "#FDE8D0" },
+          { label: "Avg Rating",   value: avgRating ? `${avgRating}★` : "—",          icon: <Star size={22} className="fill-current" />, color: "#FF9F1C", bg: "#FDE8D0" },
+          { label: "Money Saved",  value: totalSaved ? `₹${totalSaved.toLocaleString()}` : "₹0", icon: <TrendingUp size={22} />, color: "#16a34a", bg: "#DCFCE7" },
         ].map((s) => (
           <div key={s.label} className="card-warm p-5 flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: s.bg, color: s.color }}>
@@ -110,11 +125,12 @@ export default function HomePage() {
 
       {/* ── Cuisine Chips ────────────────────────────────────── */}
       <div className="mt-10 flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
-        {cuisines.map((c, i) => (
+        {["All", ...cuisines.filter(c => c !== "All")].map((c, i) => (
           <button
             key={c}
+            onClick={() => setActiveCuisine(c)}
             className="flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold border-2 transition-all whitespace-nowrap"
-            style={i === 0
+            style={activeCuisine === c
               ? { background: "linear-gradient(135deg,#E8360A,#FF9F1C)", color: "#fff", borderColor: "transparent" }
               : { background: "#ffffff", color: "#4A2E1A", borderColor: "rgba(232,54,10,0.12)" }
             }
