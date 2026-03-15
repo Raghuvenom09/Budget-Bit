@@ -1,16 +1,178 @@
-# React + Vite
+# Budget Bit
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Budget Bit is an AI-powered food review platform where users upload restaurant bills, auto-extract dishes using OCR, rate meals, and get value-focused recommendations.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Frontend: React + Vite + Tailwind + Supabase Auth/DB
+- AI Service: FastAPI + Gemini (`gemini-2.5-flash`)
+- Optional Legacy API: Express + MongoDB (kept for compatibility)
 
-## React Compiler
+## Monorepo Structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```text
+Budget Bit/
+├─ client/          # React app (port 5173)
+├─ ai/              # FastAPI AI microservice (port 8000)
+├─ server/          # Express API (port 5000 by default)
+├─ supabase/        # SQL / migration assets
+└─ start-all.ps1    # Launches frontend + server + ai together (Windows)
+```
 
-## Expanding the ESLint configuration
+## Prerequisites
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- Node.js 20+
+- Python 3.11+ (3.12 works)
+- PowerShell (Windows)
+- Supabase project
+- Gemini API key
+
+## Environment Setup
+
+### 1) Frontend env
+
+Create `client/.env`:
+
+```dotenv
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-public-key
+```
+
+### 2) AI env
+
+Create/verify `ai/.env`:
+
+```dotenv
+PORT=8000
+NODE_ENV=development
+GEMINI_API_KEY=your_gemini_api_key
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_KEY=your_service_role_key
+```
+
+### 3) Optional Express env
+
+Create/verify `server/.env`:
+
+```dotenv
+NODE_ENV=development
+PORT=5000
+MONGO_URI=mongodb://127.0.0.1:27017/budgetbit
+JWT_SECRET=replace_with_long_random_secret
+JWT_EXPIRES_IN=7d
+CLIENT_URL=http://localhost:5173
+```
+
+## Install Dependencies
+
+### Frontend
+
+```powershell
+cd "d:\Budget Bit\client"
+npm install
+```
+
+### Server
+
+```powershell
+cd "d:\Budget Bit\server"
+npm install
+```
+
+### AI (recommended: isolated venv)
+
+```powershell
+cd "d:\Budget Bit\ai"
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+## Run the Project
+
+### One command (Windows)
+
+```powershell
+cd "d:\Budget Bit"
+.\start-all.ps1
+```
+
+This opens separate terminal windows for:
+
+- Frontend: `http://localhost:5173`
+- Express API: `http://localhost:3001` (from launcher)
+- AI API: `http://localhost:8000`
+- AI Docs: `http://localhost:8000/docs`
+
+### Manual run (if needed)
+
+```powershell
+# Terminal 1
+cd "d:\Budget Bit\client"
+npm run dev
+
+# Terminal 2
+cd "d:\Budget Bit\server"
+npm run dev
+
+# Terminal 3
+cd "d:\Budget Bit\ai"
+.\.venv\Scripts\Activate.ps1
+python -m uvicorn main:app --reload --port 8000
+```
+
+## AI Endpoints
+
+- `POST /ai/ocr/scan` — receipt OCR (items, restaurant, total, confidence)
+- `POST /ai/score/predict` — worth-it score prediction
+- `POST /ai/recommend/dishes` — personalized recommendations
+- `GET /ai/health` — health check
+
+## OCR Regression Harness
+
+A quick batch test script is available at `ai/scripts/ocr_regression.py`.
+
+1. Put sample receipts into a folder (jpg/png/pdf).
+2. Run:
+
+```powershell
+cd "d:\Budget Bit\ai"
+.\.venv\Scripts\Activate.ps1
+python scripts\ocr_regression.py "d:\Budget Bit\ai\sample-receipts" --url "http://localhost:8000" --out "ocr-regression-report.json"
+```
+
+The output report includes pass/fail summary and per-file response snapshots.
+
+## Build / Sanity Commands
+
+### Frontend production build
+
+```powershell
+cd "d:\Budget Bit\client"
+npx vite build
+```
+
+### AI compile check
+
+```powershell
+cd "d:\Budget Bit\ai"
+python -m py_compile main.py routers\ocr.py routers\score.py routers\recommend.py scripts\ocr_regression.py
+```
+
+## Troubleshooting
+
+- `Folder not found` during OCR regression: use a real local folder path, not a placeholder.
+- `Scripts not on PATH` warnings: safe to ignore if using `.venv\Scripts\Activate.ps1`.
+- Dependency conflicts in global Python: use the project venv to isolate packages.
+- Missing Supabase vars: verify `client/.env` has both `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+
+## Security Notes
+
+- Do not commit secrets in `.env` files.
+- If any API key was exposed previously, rotate it immediately.
+- Keep service-role keys server-side only (never in frontend code).
+
+---
+
+If you want, next I can also add a `README-quickstart.ps1` that auto-validates env files and starts everything with preflight checks.
