@@ -7,6 +7,33 @@ function check({ data, error }) {
     return data;
 }
 
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(url, options = {}, retryOptions = {}) {
+    const { retries = 2, backoffMs = 350 } = retryOptions;
+    let lastError;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                throw new Error(`Request failed ${response.status}`);
+            }
+            return response;
+        } catch (error) {
+            lastError = error;
+            if (attempt === retries) {
+                break;
+            }
+            await sleep(backoffMs * (attempt + 1));
+        }
+    }
+
+    throw lastError;
+}
+
 export const api = {
     // ── Restaurants ──────────────────────────────────────────────────────────────
     restaurants: {
@@ -107,33 +134,30 @@ export const api = {
         ocr: async (file) => {
             const fd = new FormData();
             fd.append("file", file);
-            const res = await fetch("http://localhost:8000/ai/ocr/scan", {
+            const res = await fetchWithRetry("http://localhost:8000/ai/ocr/scan", {
                 method: "POST",
                 body: fd,
-            });
-            if (!res.ok) throw new Error(`OCR error ${res.status}`);
+            }, { retries: 2, backoffMs: 400 });
             return res.json();
         },
 
         /** Get a Worth-It score for a dish */
         score: async (body) => {
-            const res = await fetch("http://localhost:8000/ai/score/predict", {
+            const res = await fetchWithRetry("http://localhost:8000/ai/score/predict", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body),
-            });
-            if (!res.ok) throw new Error(`Score error ${res.status}`);
+            }, { retries: 1, backoffMs: 300 });
             return res.json();
         },
 
         /** Get personalised dish recommendations */
         recommend: async (body) => {
-            const res = await fetch("http://localhost:8000/ai/recommend/dishes", {
+            const res = await fetchWithRetry("http://localhost:8000/ai/recommend/dishes", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body),
-            });
-            if (!res.ok) throw new Error(`Recommend error ${res.status}`);
+            }, { retries: 1, backoffMs: 300 });
             return res.json();
         },
     },

@@ -5,10 +5,13 @@ receipt photo. Falls back to a structured mock if the API key isn't set yet.
 """
 
 import os, json, re, io
+from datetime import datetime
+from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from PIL import Image
 import google.generativeai as genai
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 load_dotenv()
 router = APIRouter()
@@ -42,6 +45,100 @@ Rules:
 """
 
 
+class OCRItem(BaseModel):
+    name: str = ""
+    qty: int = 1
+    price: float = 0
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_name(cls, value):
+        return str(value or "").strip()
+
+    @field_validator("qty", mode="before")
+    @classmethod
+    def normalize_qty(cls, value):
+        try:
+            qty = int(float(value))
+        except (TypeError, ValueError):
+            qty = 1
+        return max(qty, 1)
+
+    @field_validator("price", mode="before")
+    @classmethod
+    def normalize_price(cls, value):
+        try:
+            price = float(value)
+        except (TypeError, ValueError):
+            price = 0
+        return max(price, 0)
+
+
+class OCRScanResult(BaseModel):
+    restaurant: Optional[str] = None
+    date: Optional[str] = None
+    items: List[OCRItem] = Field(default_factory=list)
+    total: float = 0
+    confidence: float = 0
+
+    @field_validator("restaurant", mode="before")
+    @classmethod
+    def normalize_restaurant(cls, value):
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def normalize_date(cls, value):
+        if value in (None, ""):
+            return None
+        text = str(value).strip()
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y"):
+            try:
+                return datetime.strptime(text, fmt).strftime("%Y-%m-%d")
+            except ValueError:
+                continue
+        return None
+
+    @field_validator("total", mode="before")
+    @classmethod
+    def normalize_total(cls, value):
+        try:
+            total = float(value)
+        except (TypeError, ValueError):
+            total = 0
+        return max(total, 0)
+
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def normalize_confidence(cls, value):
+        try:
+            conf = float(value)
+        except (TypeError, ValueError):
+            conf = 0
+        return min(max(conf, 0), 1)
+
+
+def _safe_parse_model_output(raw_text: str) -> OCRScanResult:
+    raw_text = raw_text.strip()
+    raw_text = re.sub(r"^```(?:json)?\s*", "", raw_text)
+    raw_text = re.sub(r"\s*```$", "", raw_text)
+    payload = json.loads(raw_text)
+    result = OCRScanResult.model_validate(payload)
+
+    if result.total <= 0 and result.items:
+        result.total = round(sum(item.price * item.qty for item in result.items), 2)
+
+    if result.restaurant:
+        normalized = result.restaurant.casefold()
+        if normalized in {"null", "none", "n/a", "na", "unknown"}:
+            result.restaurant = None
+
+    return result
+
+
 @router.post("/scan")
 async def scan_receipt(file: UploadFile = File(...)):
     # ── No API key → return demo mock ─────────────────────────────────────────
@@ -65,24 +162,22 @@ async def scan_receipt(file: UploadFile = File(...)):
         contents = await file.read()
         img = Image.open(io.BytesIO(contents))
 
-        response = _model.generate_content([PROMPT, img])
-        raw = response.text.strip()
+        last_error = None
+        for _ in range(2):
+            try:
+                response = _model.generate_content([PROMPT, img])
+                raw = response.text or ""
+                parsed = _safe_parse_model_output(raw)
+                return parsed.model_dump()
+            except (json.JSONDecodeError, ValidationError) as error:
+                last_error = error
 
-        # Strip markdown code fences if Gemini wraps the JSON
-        raw = re.sub(r"^```(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
+        if last_error:
+            raise last_error
 
-        data = json.loads(raw)
+        raise HTTPException(status_code=422, detail="AI scan failed to produce valid receipt JSON.")
 
-        # Auto-fill total if missing
-        if not data.get("total") and data.get("items"):
-            data["total"] = sum(
-                i.get("price", 0) * i.get("qty", 1) for i in data["items"]
-            )
-
-        return data
-
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, ValidationError):
         raise HTTPException(
             status_code=422,
             detail="AI returned invalid JSON — try a clearer photo of the bill.",
