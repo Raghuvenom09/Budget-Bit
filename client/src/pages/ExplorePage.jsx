@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Compass, MapPin, Star, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Compass, MapPin, Star, SlidersHorizontal, Sparkles, LocateFixed, Clock3, ExternalLink } from "lucide-react";
 import { cuisines } from "../lib/mockData";
 import { api } from "../api";
 import WorthItBadge from "../components/WorthItBadge";
@@ -15,10 +15,102 @@ export default function ExplorePage() {
   const [loading, setLoading] = useState(true);
   const [aiPicks, setAiPicks] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [openNowOnly, setOpenNowOnly] = useState(false);
+  const [userCoords, setUserCoords] = useState(null);
+  const [locating, setLocating] = useState(false);
+  const [locationMsg, setLocationMsg] = useState("Using stored distance estimates");
+  const [selectedMapRestaurantId, setSelectedMapRestaurantId] = useState(null);
 
   useEffect(() => {
     api.restaurants.list().then(setRestaurants).catch(console.error).finally(() => setLoading(false));
   }, []);
+
+  const toMinutes = (value) => {
+    if (!value || typeof value !== "string") return null;
+    const match = value.trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return null;
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+    return hour * 60 + minute;
+  };
+
+  const isRestaurantOpenNow = (restaurant) => {
+    if (typeof restaurant.open_now === "boolean") return restaurant.open_now;
+
+    const openTimeRaw = restaurant.open_time || restaurant.opens_at || restaurant.opening_time;
+    const closeTimeRaw = restaurant.close_time || restaurant.closes_at || restaurant.closing_time;
+    const openMinutes = toMinutes(openTimeRaw);
+    const closeMinutes = toMinutes(closeTimeRaw);
+
+    if (openMinutes === null || closeMinutes === null) return true;
+
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    if (closeMinutes > openMinutes) {
+      return currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
+    }
+
+    return currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
+  };
+
+  const haversineKm = (lat1, lon1, lat2, lon2) => {
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const earthRadiusKm = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return earthRadiusKm * c;
+  };
+
+  const getDistanceKm = (restaurant) => {
+    if (!userCoords) return Number(restaurant.distance ?? 999);
+    const lat = Number(restaurant.latitude ?? restaurant.lat);
+    const lng = Number(restaurant.longitude ?? restaurant.lng ?? restaurant.lon);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return haversineKm(userCoords.latitude, userCoords.longitude, lat, lng);
+    }
+    return Number(restaurant.distance ?? 999);
+  };
+
+  const getValueRankScore = (restaurant) => {
+    const worthScore = Number(restaurant.worth_it_score ?? 70);
+    const cost = Number(restaurant.avg_cost ?? restaurant.price_for_two ?? 2000);
+    const distanceKm = getDistanceKm(restaurant);
+    const openBoost = isRestaurantOpenNow(restaurant) ? 8 : -8;
+    const valuePart = worthScore * 0.9;
+    const distancePenalty = Math.min(distanceKm, 10) * 2.4;
+    const costPenalty = Math.min(cost, 3000) / 140;
+    return valuePart + openBoost - distancePenalty - costPenalty;
+  };
+
+  const requestCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationMsg("Location not supported by this browser");
+      return;
+    }
+    setLocating(true);
+    setLocationMsg("Detecting your current location...");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserCoords({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        setLocating(false);
+        setLocationMsg("Using current location for nearby ranking");
+      },
+      () => {
+        setLocating(false);
+        setLocationMsg("Location access denied. Using stored distance estimates");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   // Fetch AI dish recommendations whenever budget or cuisine changes
   useEffect(() => {
@@ -40,12 +132,27 @@ export default function ExplorePage() {
     return () => clearTimeout(timer);
   }, [budget, selectedCuisine]);
 
-  const filtered = restaurants.filter(
-    (r) =>
-      (r.avg_cost ?? r.price_for_two ?? 9999) <= budget &&
-      (selectedCuisine === "All" || r.cuisine === selectedCuisine) &&
-      (r.distance ?? 0) <= maxDist
-  );
+  const filtered = restaurants.filter((restaurant) => {
+    const withinBudget = (restaurant.avg_cost ?? restaurant.price_for_two ?? 9999) <= budget;
+    const cuisineMatch = selectedCuisine === "All" || restaurant.cuisine === selectedCuisine;
+    const withinDistance = getDistanceKm(restaurant) <= maxDist;
+    const openMatch = openNowOnly ? isRestaurantOpenNow(restaurant) : true;
+    return withinBudget && cuisineMatch && withinDistance && openMatch;
+  });
+
+  const sortedRestaurants = [...filtered].sort((a, b) => getValueRankScore(b) - getValueRankScore(a));
+  const bestRatedRestaurant = [...filtered].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0] || null;
+  const selectedMapRestaurant =
+    sortedRestaurants.find((restaurant) => restaurant.id === selectedMapRestaurantId) || bestRatedRestaurant;
+
+  const getMapsQuery = (restaurant) => {
+    if (!restaurant) return "Bangalore";
+    const query = `${restaurant.name || "Restaurant"} ${restaurant.address || ""}`.trim();
+    return encodeURIComponent(query || "Restaurant near me");
+  };
+
+  const mapEmbedUrl = `https://www.google.com/maps?q=${getMapsQuery(selectedMapRestaurant)}&output=embed`;
+  const mapOpenUrl = `https://www.google.com/maps/search/?api=1&query=${getMapsQuery(selectedMapRestaurant)}`;
 
   return (
     <div className="pb-16 w-full">
@@ -105,9 +212,40 @@ export default function ExplorePage() {
               </div>
             </div>
 
-            {(budget < 2000 || maxDist < 10 || selectedCuisine !== "All") && (
+            <div className="mt-7">
+              <p className="text-[#8C6A52] text-xs font-bold uppercase tracking-wider mb-3">⏰ Availability</p>
               <button
-                onClick={() => { setBudget(2000); setMaxDist(10); setSelectedCuisine("All"); }}
+                onClick={() => setOpenNowOnly((prev) => !prev)}
+                className="w-full py-2.5 rounded-xl text-xs font-bold border-2 transition-colors flex items-center justify-center gap-2"
+                style={openNowOnly
+                  ? { borderColor: "#16A34A", color: "#166534", background: "#DCFCE7" }
+                  : { borderColor: "rgba(232,54,10,0.2)", color: "#4A2E1A", background: "#FFF8F0" }}
+              >
+                <Clock3 size={14} /> {openNowOnly ? "Open Now Only: ON" : "Open Now Only: OFF"}
+              </button>
+            </div>
+
+            <div className="mt-7">
+              <p className="text-[#8C6A52] text-xs font-bold uppercase tracking-wider mb-3">📍 Current Location</p>
+              <button
+                onClick={requestCurrentLocation}
+                disabled={locating}
+                className="w-full py-2.5 rounded-xl text-xs font-bold border-2 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                style={{ borderColor: "rgba(232,54,10,0.2)", color: "#E8360A", background: "#FFF8F0" }}
+              >
+                <LocateFixed size={14} /> {locating ? "Locating..." : "Use Current Location"}
+              </button>
+              <p className="text-[10px] text-[#8C6A52] font-semibold mt-2">{locationMsg}</p>
+            </div>
+
+            {(budget < 2000 || maxDist < 10 || selectedCuisine !== "All" || openNowOnly) && (
+              <button
+                onClick={() => {
+                  setBudget(2000);
+                  setMaxDist(10);
+                  setSelectedCuisine("All");
+                  setOpenNowOnly(false);
+                }}
                 className="w-full mt-6 py-2.5 rounded-xl text-xs font-bold text-[#E8360A] border-2 hover:bg-[#FDE8D0] transition-colors"
                 style={{ borderColor: "rgba(232,54,10,0.2)" }}
               >
@@ -158,11 +296,66 @@ export default function ExplorePage() {
             </div>
           )}
 
+          {sortedRestaurants.length > 0 && (
+            <div className="mb-8 card-warm p-5">
+              <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+                <p className="font-bold text-[#1A0A00] text-sm">Map View · Best rated near you</p>
+                {bestRatedRestaurant && (
+                  <span className="text-[11px] font-bold px-3 py-1.5 rounded-full" style={{ background: "#FEF3C7", color: "#92400E" }}>
+                    👑 Best Rating: {bestRatedRestaurant.name} ({bestRatedRestaurant.rating ?? "—"})
+                  </span>
+                )}
+              </div>
+
+              <div className="rounded-2xl overflow-hidden border-2" style={{ borderColor: "rgba(232,54,10,0.12)" }}>
+                <iframe
+                  title="Restaurant map"
+                  src={mapEmbedUrl}
+                  className="w-full h-72"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-xs font-semibold text-[#8C6A52]">
+                  Showing: <span className="text-[#1A0A00] font-bold">{selectedMapRestaurant?.name || "—"}</span>
+                </p>
+                <a
+                  href={mapOpenUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"
+                  style={{ background: "#FDE8D0", color: "#E8360A" }}
+                >
+                  Open in Google Maps <ExternalLink size={13} />
+                </a>
+              </div>
+
+              <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+                {sortedRestaurants.slice(0, 10).map((restaurant) => (
+                  <button
+                    key={restaurant.id}
+                    onClick={() => setSelectedMapRestaurantId(restaurant.id)}
+                    className="px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap border-2 transition-colors"
+                    style={selectedMapRestaurant?.id === restaurant.id
+                      ? { background: "linear-gradient(135deg,#E8360A,#FF9F1C)", color: "#fff", borderColor: "transparent" }
+                      : { background: "#FFF8F0", color: "#4A2E1A", borderColor: "rgba(232,54,10,0.15)" }}
+                  >
+                    {restaurant.name} ⭐ {restaurant.rating ?? "—"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between mb-5">
             <p className="text-[#8C6A52] text-sm font-semibold">
               <span className="text-[#1A0A00] font-black text-base">{filtered.length}</span> restaurants found
             </p>
-            <span className="text-[#8C6A52] text-xs font-bold px-3 py-1.5 rounded-full" style={{ background: "#FDE8D0" }}>Sorted by Score</span>
+            <span className="text-[#8C6A52] text-xs font-bold px-3 py-1.5 rounded-full" style={{ background: "#FDE8D0" }}>
+              Sorted by Best Nearby Value
+            </span>
           </div>
 
           {loading ? (
@@ -185,8 +378,10 @@ export default function ExplorePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 stagger">
-              {[...filtered].sort((a, b) => (b.worth_it_score ?? 0) - (a.worth_it_score ?? 0)).map((r) => {
+              {sortedRestaurants.map((r) => {
                 const topDish = (r.top_dishes || [])[0];
+                const isOpen = isRestaurantOpenNow(r);
+                const effectiveDistance = getDistanceKm(r);
                 return (
                   <div
                     key={r.id}
@@ -210,7 +405,9 @@ export default function ExplorePage() {
                           <p className="text-[#8C6A52] text-xs mt-1 flex items-center gap-1.5 flex-wrap">
                             <span className="font-semibold">{r.cuisine}</span>
                             <span className="w-1 h-1 rounded-full bg-[#F9C9A0]" />
-                            <MapPin size={9} className="inline" /> {r.distance ?? "?"} km
+                            <MapPin size={9} className="inline" /> {Number.isFinite(effectiveDistance) ? effectiveDistance.toFixed(1) : "?"} km
+                            <span className="w-1 h-1 rounded-full bg-[#F9C9A0]" />
+                            <span className={isOpen ? "text-green-700" : "text-red-600"}>{isOpen ? "Open now" : "Closed"}</span>
                           </p>
                         </div>
                         <WorthItBadge score={r.worth_it_score ?? 75} size="md" />
