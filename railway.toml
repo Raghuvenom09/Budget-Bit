@@ -1,0 +1,29 @@
+# Railway Deployment Configuration
+# Docs: https://docs.railway.app/
+
+# This tells Railway to use Docker
+ railway.toml
+
+ [build]
+ dockerfilePath = "client/Dockerfile"
+
+ [build.dockerfileArgs]
+ VITE_SUPABASE_URL = "{{ .VITE_SUPABASE_URL }}"
+ VITE_SUPABASE_ANON_KEY = "{{ .VITE_SUPABASE_ANON_KEY }}"
+ VITE_AI_BASE_URL = "{{ .VITE_AI_BASE_URL }}"
+
+ [[services]]
+ name = "client"
+ dockerfilePath = "client/Dockerfile"
+ healthcheckPath = "/"
+ healthcheckInterval = 30
+ port = 80
+ environments = ["production"]
+
+ [[services]]
+ name = "ai"
+ dockerfilePath = "ai/Dockerfile"
+ healthcheckPath = "/ai/health"
+ healthcheckInterval = 30
+ port = 8000
+ environments = ["production"]

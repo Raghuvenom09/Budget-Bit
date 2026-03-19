@@ -2,6 +2,7 @@
 node_modules/
 client/node_modules/
 server/node_modules/
+ai/.venv/
 __pycache__/
 ai/**/__pycache__/
 *.pyc
@@ -16,9 +17,17 @@ client/dist/
 
 # ── Environment / secrets — NEVER commit ─────────────────────────────────────
 .env
+.env.local
+.env.*.local
 client/.env
 server/.env
 ai/.env
+
+# ── Test coverage ─────────────────────────────────────────────────────────────
+coverage/
+client/coverage/
+ai/htmlcov/
+*.coverage
 
 # ── Logs ──────────────────────────────────────────────────────────────────────
 logs/
@@ -27,6 +36,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# ── Docker ─────────────────────────────────────────────────────────────────────
+.docker/
 
 # ── OS / Editor ───────────────────────────────────────────────────────────────
 .DS_Store

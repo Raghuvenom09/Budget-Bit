@@ -1,0 +1,36 @@
+# Fly.io Deployment Configuration
+# Docs: https://fly.io/docs/
+
+# Initialize with: fly launch
+# Deploy with: fly deploy
+
+app = "budget-bit"
+
+[build]
+  dockerfile = "client/Dockerfile"
+
+[env]
+  PORT = "80"
+
+[http_service]
+  internal_port = 80
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[services]]
+  internal_port = 80
+  protocol = "tcp"
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+# AI Service (deploy separately with: fly launch --image budgbitai)
+# [services]
+#   internal_port = 8000

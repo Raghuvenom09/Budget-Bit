@@ -19,7 +19,6 @@ export default function UploadPage() {
 
   const [stage, setStage] = useState("idle"); // idle → preview → extracted
   const [dragOver, setDragOver] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState(null);
   const [billImageUrl, setBillImageUrl] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [savingBill, setSavingBill] = useState(false);
@@ -95,7 +94,6 @@ export default function UploadPage() {
     }
 
     setFileError(null);
-    setUploadedFile(file);
     setOcrError(null);
     setOcrRestaurant(null);
     setOcrDate(null);

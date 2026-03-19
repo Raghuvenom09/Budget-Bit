@@ -26,6 +26,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (user?.id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBillsLoading(true);
       api.bills.list({ userId: user.id })
         .then(setBills)

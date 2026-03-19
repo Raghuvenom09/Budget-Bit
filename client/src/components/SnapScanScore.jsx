@@ -33,17 +33,6 @@ export default function SnapScanScore() {
     timers.current.push(id);
   }
 
-  function runSequence() {
-    setPhase("idle"); setVisibleItems([]); setScoreVal(0); setScanY(0);
-    t(() => setPhase("flash"),   600);
-    t(() => { setPhase("scanning"); animateScan(); }, 1100);
-    t(() => { setPhase("extracting"); setVisibleItems([0]); },  2600);
-    t(() => setVisibleItems([0, 1]), 3200);
-    t(() => setVisibleItems([0, 1, 2]), 3800);
-    t(() => { setPhase("scored"); countUp(88); }, 4500);
-    t(() => { runSequence(); }, 7200);
-  }
-
   function animateScan() {
     let start = null;
     const duration = 1400;
@@ -65,6 +54,17 @@ export default function SnapScanScore() {
     }, 18);
   }
 
+  function runSequence() {
+    setPhase("idle"); setVisibleItems([]); setScoreVal(0); setScanY(0);
+    t(() => setPhase("flash"),   600);
+    t(() => { setPhase("scanning"); animateScan(); }, 1100);
+    t(() => { setPhase("extracting"); setVisibleItems([0]); },  2600);
+    t(() => setVisibleItems([0, 1]), 3200);
+    t(() => setVisibleItems([0, 1, 2]), 3800);
+    t(() => { setPhase("scored"); countUp(88); }, 4500);
+    t(() => { runSequence(); }, 7200);
+  }
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -80,6 +80,7 @@ export default function SnapScanScore() {
     );
     if (sectionRef.current) observer.observe(sectionRef.current);
     return () => { observer.disconnect(); clearAll(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const r = 36, circ = 2 * Math.PI * r;

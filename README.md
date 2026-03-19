@@ -175,4 +175,112 @@ python -m py_compile main.py routers\ocr.py routers\score.py routers\recommend.p
 
 ---
 
-If you want, next I can also add a `README-quickstart.ps1` that auto-validates env files and starts everything with preflight checks.
+## Production Deployment
+
+### Quick Start with Docker
+
+```powershell
+# Clone and configure
+cp client/.env.example client/.env
+cp ai/.env.example ai/.env
+# Edit .env files with your production values
+
+# Build and run
+docker-compose up --build
+```
+
+### Docker Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| Client | 80 | React frontend (nginx) |
+| AI | 8000 | FastAPI OCR/scoring service |
+
+### Production Docker Compose
+
+```powershell
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+### Kubernetes Deployment
+
+```powershell
+kubectl apply -f k8s/deployment.yaml
+```
+
+### GitHub Actions CI/CD
+
+The project includes automated CI/CD:
+
+- **CI Pipeline** (`.github/workflows/ci.yml`):
+  - Runs on every push/PR
+  - Lints code
+  - Runs tests (Vitest for React, pytest for AI)
+  - Builds Docker images
+
+- **CD Pipeline** (`.github/workflows/cd.yml`):
+  - Runs on push to `main` branch
+  - Builds and pushes Docker images to GitHub Container Registry
+  - Configure secrets in GitHub: Settings → Secrets
+
+### Required Secrets for Production
+
+| Secret | Description |
+|--------|-------------|
+| `GEMINI_API_KEY` | Google Gemini API key |
+| `SUPABASE_ANON_KEY` | Supabase anon key (public) |
+| `SUPABASE_SERVICE_KEY` | Supabase service role key (private) |
+
+### Running Tests
+
+```powershell
+# React client tests
+cd client
+npm run test
+
+# AI service tests
+cd ai
+pip install -r requirements-test.txt
+pytest tests/ -v
+```
+
+### Build for Production
+
+```powershell
+# Client production build
+cd client
+npm run build
+
+# AI service
+cd ai
+pip install -r requirements.txt
+gunicorn --bind 0.0.0.0:8000 --workers 2 --threads 4 main:app
+```
+
+---
+
+## Project Structure
+
+```
+Budget Bit/
+├─ client/          # React app (Vite, Tailwind, Supabase)
+│   ├─ src/
+│   │   ├─ components/   # UI components
+│   │   ├─ context/      # React context (Auth)
+│   │   ├─ lib/           # Utilities (Supabase client)
+│   │   ├─ pages/         # Page components
+│   │   └─ test/          # Test files
+│   ├─ Dockerfile
+│   └─ vitest.config.js
+├─ ai/              # FastAPI AI microservice
+│   ├─ routers/          # API routes (OCR, Score, Recommend)
+│   ├─ tests/            # Test files
+│   ├─ Dockerfile
+│   └─ requirements.txt
+├─ server/          # Express API (optional, legacy)
+├─ supabase/        # SQL / migration assets
+├─ k8s/             # Kubernetes manifests
+├─ .github/         # GitHub Actions workflows
+├─ docker-compose.yml
+└─ README.md
+```

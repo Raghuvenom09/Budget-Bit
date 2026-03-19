@@ -1,0 +1,162 @@
+# Kubernetes Manifests for Budget Bit
+# Usage:
+#   kubectl apply -f k8s/
+#   kubectl get all -n budget-bit
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: budget-bit
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: budget-bit-client
+  namespace: budget-bit
+data:
+  VITE_SUPABASE_URL: "REPLACE_WITH_URL"
+  VITE_AI_BASE_URL: "https://budget-bit-ai.example.com"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: budget-bit-secrets
+  namespace: budget-bit
+type: Opaque
+stringData:
+  VITE_SUPABASE_ANON_KEY: "REPLACE_WITH_KEY"
+  GEMINI_API_KEY: "REPLACE_WITH_KEY"
+  SUPABASE_URL: "REPLACE_WITH_URL"
+  SUPABASE_SERVICE_KEY: "REPLACE_WITH_KEY"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: budget-bit-client
+  namespace: budget-bit
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: budget-bit-client
+  template:
+    metadata:
+      labels:
+        app: budget-bit-client
+    spec:
+      containers:
+      - name: client
+        image: ghcr.io/YOUR_USERNAME/budget-bit-client:latest
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 30
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: budget-bit-ai
+  namespace: budget-bit
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: budget-bit-ai
+  template:
+    metadata:
+      labels:
+        app: budget-bit-ai
+    spec:
+      containers:
+      - name: ai
+        image: ghcr.io/YOUR_USERNAME/budget-bit-ai:latest
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - secretRef:
+            name: budget-bit-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /ai/health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: budget-bit-client
+  namespace: budget-bit
+spec:
+  selector:
+    app: budget-bit-client
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: budget-bit-ai
+  namespace: budget-bit
+spec:
+  selector:
+    app: budget-bit-ai
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: budget-bit-ingress
+  namespace: budget-bit
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+  - host: budget-bit.example.com
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: budget-bit-server
+            port:
+              number: 5000
+      - path: /ai
+        pathType: Prefix
+        backend:
+          service:
+            name: budget-bit-ai
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: budget-bit-client
+            port:
+              number: 80

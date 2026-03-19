@@ -1,0 +1,96 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  Budget Bit — Docker Compose for Local Development & Production              ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+#
+# Usage:
+#   Development:  docker-compose up
+#   Production:   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# ────────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── Frontend ──────────────────────────────────────────────────────────────────
+  client:
+    build:
+      context: ./client
+      dockerfile: ../Dockerfile.client
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+        VITE_AI_BASE_URL: ${VITE_AI_BASE_URL:-http://localhost:8000}
+    ports:
+      - "5173:80"
+    depends_on:
+      - ai
+    environment:
+      - NODE_ENV=production
+    networks:
+      - budget-bit-network
+
+  # ── AI Microservice ───────────────────────────────────────────────────────────
+  ai:
+    build:
+      context: ./ai
+      dockerfile: ../Dockerfile.ai
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - NODE_ENV=production
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/ai/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - budget-bit-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ── Legacy Express Server (Optional) ─────────────────────────────────────────
+  # This server is optional — React primarily uses Supabase directly.
+  # Enable if you need custom Express middleware or legacy API compatibility.
+  # Uncomment to enable:
+  #
+  # server:
+  #   build:
+  #     context: ./server
+  #     dockerfile: ../Dockerfile.server
+  #   ports:
+  #     - "5000:5000"
+  #   environment:
+  #     - NODE_ENV=production
+  #     - PORT=5000
+  #     - MONGO_URI=${MONGO_URI:-mongodb://mongo:27017/budgetbit}
+  #     - JWT_SECRET=${JWT_SECRET}
+  #     - JWT_EXPIRES_IN=7d
+  #     - CLIENT_URL=${CLIENT_URL:-http://localhost}
+  #   depends_on:
+  #     - mongo
+  #   networks:
+  #     - budget-bit-network
+
+  # ── MongoDB (for legacy server, optional) ──────────────────────────────────────
+  # mongo:
+  #   image: mongo:7
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongo-data:/data/db
+  #   networks:
+  #     - budget-bit-network
+
+# ── Networks ────────────────────────────────────────────────────────────────────
+networks:
+  budget-bit-network:
+    driver: bridge
+
+# ── Volumes ─────────────────────────────────────────────────────────────────────
+# volumes:
+#   mongo-data:
