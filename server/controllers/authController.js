@@ -7,14 +7,16 @@ const signToken = (id) =>
 // POST /api/auth/register
 export const register = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email: rawEmail, password } = req.body;
+        const email = rawEmail?.toLowerCase().trim();
+
         if (!name || !email || !password)
             return res.status(400).json({ message: "All fields are required." });
 
         const exists = await User.findOne({ email });
         if (exists) return res.status(409).json({ message: "Email already registered." });
 
-        const user = await User.create({ name, email, password });
+        const user = await User.create({ name: name.trim(), email, password });
         const token = signToken(user._id);
 
         res.status(201).json({
@@ -29,7 +31,9 @@ export const register = async (req, res) => {
 // POST /api/auth/login
 export const login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email: rawEmail, password } = req.body;
+        const email = rawEmail?.toLowerCase().trim();
+
         if (!email || !password)
             return res.status(400).json({ message: "Email and password are required." });
 
@@ -48,11 +52,7 @@ export const login = async (req, res) => {
 };
 
 // GET /api/auth/me  (protected)
-export const getMe = async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id).select("-password");
-        res.json(user);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
+// req.user is already populated by the protect middleware — no extra DB round-trip needed
+export const getMe = (req, res) => {
+    res.json(req.user);
 };

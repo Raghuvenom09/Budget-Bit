@@ -1,15 +1,23 @@
+import mongoose from "mongoose";
 import Bill from "../models/Bill.js";
+
+const BILL_ALLOWED = ["restaurant", "restaurantName", "items", "totalAmount", "savedAmount", "receiptImageUrl", "date"];
+
+function pick(body, allowed) {
+    return Object.fromEntries(allowed.filter((k) => k in body).map((k) => [k, body[k]]));
+}
 
 // GET /api/bills  (protected — own bills only)
 export const getBills = async (req, res) => {
     try {
-        const { limit = 20, page = 1 } = req.query;
+        const limit = Math.min(Number(req.query.limit) || 20, 50);
+        const page = Number(req.query.page) || 1;
 
         const bills = await Bill.find({ user: req.user.id })
             .populate("restaurant", "name image cuisine")
             .sort({ date: -1 })
-            .limit(Number(limit))
-            .skip((Number(page) - 1) * Number(limit))
+            .limit(limit)
+            .skip((page - 1) * limit)
             .lean();
 
         const total = await Bill.countDocuments({ user: req.user.id });
@@ -28,7 +36,7 @@ export const getBills = async (req, res) => {
             },
         ]);
 
-        res.json({ bills, total, summary: summary[0] || {}, page: Number(page) });
+        res.json({ bills, total, summary: summary[0] || {}, page });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -58,7 +66,8 @@ export const getMonthlyStats = async (req, res) => {
 // POST /api/bills  (protected)
 export const createBill = async (req, res) => {
     try {
-        const bill = await Bill.create({ ...req.body, user: req.user.id });
+        const data = pick(req.body, BILL_ALLOWED);
+        const bill = await Bill.create({ ...data, user: req.user.id });
         res.status(201).json(bill);
     } catch (err) {
         res.status(400).json({ message: err.message });
@@ -68,6 +77,9 @@ export const createBill = async (req, res) => {
 // DELETE /api/bills/:id  (protected)
 export const deleteBill = async (req, res) => {
     try {
+        if (!mongoose.isValidObjectId(req.params.id))
+            return res.status(400).json({ message: "Invalid bill ID." });
+
         const bill = await Bill.findById(req.params.id);
         if (!bill) return res.status(404).json({ message: "Bill not found." });
         if (bill.user.toString() !== req.user.id)

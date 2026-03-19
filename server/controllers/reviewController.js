@@ -1,6 +1,13 @@
 import Review from "../models/Review.js";
 import { recomputeScores } from "./restaurantController.js";
 
+// Fields a user can edit on their review
+const REVIEW_UPDATE_ALLOWED = ["overallRating", "worthItScore", "comment", "dishRatings"];
+
+function pick(body, allowed) {
+    return Object.fromEntries(allowed.filter((k) => k in body).map((k) => [k, body[k]]));
+}
+
 // GET /api/reviews?restaurant=<id>
 export const getReviews = async (req, res) => {
     try {
@@ -34,9 +41,7 @@ export const createReview = async (req, res) => {
             verified: !!bill,
         });
 
-        // Recompute restaurant aggregate scores
         await recomputeScores(restaurant);
-
         res.status(201).json(review);
     } catch (err) {
         res.status(400).json({ message: err.message });
@@ -51,7 +56,7 @@ export const updateReview = async (req, res) => {
         if (review.user.toString() !== req.user.id)
             return res.status(403).json({ message: "Not allowed." });
 
-        Object.assign(review, req.body);
+        Object.assign(review, pick(req.body, REVIEW_UPDATE_ALLOWED));
         await review.save();
 
         await recomputeScores(review.restaurant);

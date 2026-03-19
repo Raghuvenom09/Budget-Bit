@@ -6,6 +6,15 @@ import { api } from "../api";
 import WorthItBadge from "../components/WorthItBadge";
 import ScorePill from "../components/ScorePill";
 
+// Render image_url as <img> if it's a URL, otherwise as an emoji
+function RestaurantThumb({ imageUrl, emojiClass = "float-emoji" }) {
+  const isUrl = imageUrl && (imageUrl.startsWith("http") || imageUrl.startsWith("/"));
+  if (isUrl) {
+    return <img src={imageUrl} alt="" className="w-full h-full object-cover" />;
+  }
+  return <span className={emojiClass}>{imageUrl || "🍽️"}</span>;
+}
+
 export default function ExplorePage() {
   const navigate = useNavigate();
   const [budget, setBudget] = useState(2000);
@@ -13,6 +22,7 @@ export default function ExplorePage() {
   const [maxDist, setMaxDist] = useState(5);
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [aiPicks, setAiPicks] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [openNowOnly, setOpenNowOnly] = useState(false);
@@ -22,8 +32,16 @@ export default function ExplorePage() {
   const [selectedMapRestaurantId, setSelectedMapRestaurantId] = useState(null);
 
   useEffect(() => {
-    api.restaurants.list().then(setRestaurants).catch(console.error).finally(() => setLoading(false));
+    api.restaurants.list()
+      .then(setRestaurants)
+      .catch((e) => setLoadError(e.message))
+      .finally(() => setLoading(false));
   }, []);
+
+  // Clear map selection when filters change
+  useEffect(() => {
+    setSelectedMapRestaurantId(null);
+  }, [budget, selectedCuisine, maxDist, openNowOnly, userCoords]);
 
   const toMinutes = (value) => {
     if (!value || typeof value !== "string") return null;
@@ -43,7 +61,8 @@ export default function ExplorePage() {
     const openMinutes = toMinutes(openTimeRaw);
     const closeMinutes = toMinutes(closeTimeRaw);
 
-    if (openMinutes === null || closeMinutes === null) return true;
+    // If hours unknown, treat as "hours not available" — don't assume open
+    if (openMinutes === null || closeMinutes === null) return null;
 
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -79,9 +98,10 @@ export default function ExplorePage() {
 
   const getValueRankScore = (restaurant) => {
     const worthScore = Number(restaurant.worth_it_score ?? 70);
-    const cost = Number(restaurant.avg_cost ?? restaurant.price_for_two ?? 2000);
+    const cost = Number(restaurant.avg_cost ?? 2000);
     const distanceKm = getDistanceKm(restaurant);
-    const openBoost = isRestaurantOpenNow(restaurant) ? 8 : -8;
+    const isOpen = isRestaurantOpenNow(restaurant);
+    const openBoost = isOpen === true ? 8 : isOpen === false ? -8 : 0;
     const valuePart = worthScore * 0.9;
     const distancePenalty = Math.min(distanceKm, 10) * 2.4;
     const costPenalty = Math.min(cost, 3000) / 140;
@@ -106,19 +126,19 @@ export default function ExplorePage() {
       },
       () => {
         setLocating(false);
-        setLocationMsg("Location access denied. Using stored distance estimates");
+        setLocationMsg("Location access denied. Using stored estimates");
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
-  // Fetch AI dish recommendations whenever budget or cuisine changes
+  // Fetch AI dish recommendations whenever budget or cuisine changes (debounced)
   useEffect(() => {
     const timer = setTimeout(async () => {
       setAiLoading(true);
       try {
         const res = await api.ai.recommend({
-          budget: Math.round(budget / 2), // per-dish budget = half of "for two"
+          budget: Math.round(budget / 2),
           cuisines: selectedCuisine === "All" ? [] : [selectedCuisine],
           city: "Bangalore",
         });
@@ -128,31 +148,42 @@ export default function ExplorePage() {
       } finally {
         setAiLoading(false);
       }
-    }, 600); // debounce
+    }, 600);
     return () => clearTimeout(timer);
   }, [budget, selectedCuisine]);
 
   const filtered = restaurants.filter((restaurant) => {
-    const withinBudget = (restaurant.avg_cost ?? restaurant.price_for_two ?? 9999) <= budget;
+    const withinBudget = (restaurant.avg_cost ?? 9999) <= budget;
     const cuisineMatch = selectedCuisine === "All" || restaurant.cuisine === selectedCuisine;
     const withinDistance = getDistanceKm(restaurant) <= maxDist;
-    const openMatch = openNowOnly ? isRestaurantOpenNow(restaurant) : true;
+    const isOpen = isRestaurantOpenNow(restaurant);
+    // When "Open Now Only" is on, skip restaurants with known-closed status; include unknown-hours ones
+    const openMatch = openNowOnly ? isOpen !== false : true;
     return withinBudget && cuisineMatch && withinDistance && openMatch;
   });
 
   const sortedRestaurants = [...filtered].sort((a, b) => getValueRankScore(b) - getValueRankScore(a));
   const bestRatedRestaurant = [...filtered].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0] || null;
   const selectedMapRestaurant =
-    sortedRestaurants.find((restaurant) => restaurant.id === selectedMapRestaurantId) || bestRatedRestaurant;
+    sortedRestaurants.find((r) => r.id === selectedMapRestaurantId) || bestRatedRestaurant;
+
+  const lat = selectedMapRestaurant ? Number(selectedMapRestaurant.latitude ?? selectedMapRestaurant.lat) : null;
+  const lng = selectedMapRestaurant ? Number(selectedMapRestaurant.longitude ?? selectedMapRestaurant.lng ?? selectedMapRestaurant.lon) : null;
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
 
   const getMapsQuery = (restaurant) => {
-    if (!restaurant) return "Bangalore";
+    if (!restaurant) return "Bangalore restaurants";
     const query = `${restaurant.name || "Restaurant"} ${restaurant.address || ""}`.trim();
     return encodeURIComponent(query || "Restaurant near me");
   };
 
-  const mapEmbedUrl = `https://www.google.com/maps?q=${getMapsQuery(selectedMapRestaurant)}&output=embed`;
+  const mapEmbedUrl = hasCoords
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}&layer=mapnik&marker=${lat},${lng}`
+    : null;
+  
   const mapOpenUrl = `https://www.google.com/maps/search/?api=1&query=${getMapsQuery(selectedMapRestaurant)}`;
+
+  const hasActiveFilters = budget < 2000 || maxDist < 10 || selectedCuisine !== "All" || openNowOnly;
 
   return (
     <div className="pb-16 w-full">
@@ -182,8 +213,8 @@ export default function ExplorePage() {
                 <span className="text-[#8C6A52] text-xs font-bold uppercase tracking-wider">💰 Budget for Two</span>
                 <span className="font-display font-black text-sm text-[#E8360A]">₹{budget}</span>
               </div>
-              <input type="range" min="100" max="2000" step="50" value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="w-full cursor-pointer" style={{ accentColor: "#E8360A" }} />
-              <div className="flex justify-between text-[10px] text-[#8C6A52] mt-1 font-semibold"><span>₹100</span><span>₹2000</span></div>
+              <input type="range" min="100" max="5000" step="50" value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="w-full cursor-pointer" style={{ accentColor: "#E8360A" }} />
+              <div className="flex justify-between text-[10px] text-[#8C6A52] mt-1 font-semibold"><span>₹100</span><span>₹5000</span></div>
             </div>
 
             <div className="mb-7">
@@ -230,6 +261,7 @@ export default function ExplorePage() {
               <button
                 onClick={requestCurrentLocation}
                 disabled={locating}
+                aria-label="Use current location"
                 className="w-full py-2.5 rounded-xl text-xs font-bold border-2 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
                 style={{ borderColor: "rgba(232,54,10,0.2)", color: "#E8360A", background: "#FFF8F0" }}
               >
@@ -238,7 +270,7 @@ export default function ExplorePage() {
               <p className="text-[10px] text-[#8C6A52] font-semibold mt-2">{locationMsg}</p>
             </div>
 
-            {(budget < 2000 || maxDist < 10 || selectedCuisine !== "All" || openNowOnly) && (
+            {hasActiveFilters && (
               <button
                 onClick={() => {
                   setBudget(2000);
@@ -296,6 +328,7 @@ export default function ExplorePage() {
             </div>
           )}
 
+          {/* ── Map View ─────────────────────────────────────── */}
           {sortedRestaurants.length > 0 && (
             <div className="mb-8 card-warm p-5">
               <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
@@ -307,15 +340,30 @@ export default function ExplorePage() {
                 )}
               </div>
 
-              <div className="rounded-2xl overflow-hidden border-2" style={{ borderColor: "rgba(232,54,10,0.12)" }}>
-                <iframe
-                  title="Restaurant map"
-                  src={mapEmbedUrl}
-                  className="w-full h-72"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                />
-              </div>
+              {mapEmbedUrl ? (
+                <div className="rounded-2xl overflow-hidden border-2 relative" style={{ borderColor: "rgba(232,54,10,0.12)" }}>
+                  <iframe
+                    title="Restaurant map"
+                    src={mapEmbedUrl}
+                    className="w-full h-72 border-0"
+                    loading="lazy"
+                    allowFullScreen
+                  />
+                  {/* Overlay to disable scroll-to-zoom on desktop until clicked */}
+                  <div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1)' }}></div>
+                </div>
+              ) : (
+                /* Fallback when no valid coordinates — show a styled "Open in Maps" card */
+                <div
+                  className="rounded-2xl h-40 flex flex-col items-center justify-center gap-3 border-2"
+                  style={{ background: "#FFF8F0", borderColor: "rgba(232,54,10,0.12)", borderStyle: "dashed" }}
+                >
+                  <span className="text-3xl">🗺️</span>
+                  <p className="text-[#8C6A52] text-xs font-semibold text-center px-6">
+                    Location coordinates unavailable. Click below to open in Maps.
+                  </p>
+                </div>
+              )}
 
               <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
                 <p className="text-xs font-semibold text-[#8C6A52]">
@@ -358,7 +406,13 @@ export default function ExplorePage() {
             </span>
           </div>
 
-          {loading ? (
+          {loadError ? (
+            <div className="card-warm py-16 text-center">
+              <div className="text-4xl mb-2">⚠️</div>
+              <p className="text-[#4A2E1A] font-bold text-sm">Failed to load restaurants</p>
+              <p className="text-[#8C6A52] text-xs mt-1">{loadError}</p>
+            </div>
+          ) : loading ? (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="card-warm overflow-hidden animate-pulse">
@@ -382,14 +436,16 @@ export default function ExplorePage() {
                 const topDish = (r.top_dishes || [])[0];
                 const isOpen = isRestaurantOpenNow(r);
                 const effectiveDistance = getDistanceKm(r);
+                const openLabel = isOpen === null ? "Hours unknown" : isOpen ? "Open now" : "Closed";
+                const openColor = isOpen === null ? "text-[#8C6A52]" : isOpen ? "text-green-700" : "text-red-600";
                 return (
                   <div
                     key={r.id}
                     onClick={() => navigate(`/restaurant/${r.id}`)}
                     className="card-warm cursor-pointer overflow-hidden"
                   >
-                    <div className="h-36 flex items-center justify-center text-7xl relative" style={{ background: "linear-gradient(135deg,#FDE8D0,#FFF0D0,#FFF8E0)" }}>
-                      <span className="float-emoji">{r.image_url || "🍽️"}</span>
+                    <div className="h-36 flex items-center justify-center text-7xl relative overflow-hidden" style={{ background: "linear-gradient(135deg,#FDE8D0,#FFF0D0,#FFF8E0)" }}>
+                      <RestaurantThumb imageUrl={r.image_url} />
                       <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-wide" style={{ background: r.tag_color || "#E8360A" }}>
                         {r.tag || r.cuisine}
                       </div>
@@ -407,7 +463,7 @@ export default function ExplorePage() {
                             <span className="w-1 h-1 rounded-full bg-[#F9C9A0]" />
                             <MapPin size={9} className="inline" /> {Number.isFinite(effectiveDistance) ? effectiveDistance.toFixed(1) : "?"} km
                             <span className="w-1 h-1 rounded-full bg-[#F9C9A0]" />
-                            <span className={isOpen ? "text-green-700" : "text-red-600"}>{isOpen ? "Open now" : "Closed"}</span>
+                            <span className={openColor}>{openLabel}</span>
                           </p>
                         </div>
                         <WorthItBadge score={r.worth_it_score ?? 75} size="md" />
@@ -427,7 +483,7 @@ export default function ExplorePage() {
                         </div>
                       )}
                       <div className="flex items-center justify-between mt-4">
-                        <span className="text-[#8C6A52] text-xs font-semibold">₹{r.avg_cost ?? r.price_for_two ?? "—"} for two</span>
+                        <span className="text-[#8C6A52] text-xs font-semibold">₹{r.avg_cost ?? "—"} for two</span>
                         <ScorePill score={r.worth_it_score ?? 75} />
                       </div>
                     </div>

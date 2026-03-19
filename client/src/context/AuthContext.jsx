@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "../lib/supabase.js";
 
 const AuthContext = createContext(null);
@@ -9,12 +9,14 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Grab current session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Grab current session on mount — catch network/config errors so app doesn't freeze
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
 
     // Listen for auth changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -47,15 +49,19 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut();
   }, []);
 
-  // Handy derived values
-  const profile = user
-    ? {
-        id: user.id,
-        name: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "Foodie",
-        email: user.email,
-        avatar: user.user_metadata?.avatar_url ?? null,
-      }
-    : null;
+  // Handy derived values — memoized to avoid unnecessary consumer re-renders
+  const profile = useMemo(
+    () =>
+      user
+        ? {
+            id: user.id,
+            name: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "Foodie",
+            email: user.email,
+            avatar: user.user_metadata?.avatar_url ?? null,
+          }
+        : null,
+    [user]
+  );
 
   return (
     <AuthContext.Provider value={{ user, profile, session, loading, login, register, logout }}>

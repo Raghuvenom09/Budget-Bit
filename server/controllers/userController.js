@@ -31,7 +31,9 @@ export const toggleSave = async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         const id = req.params.restaurantId;
-        const idx = user.savedRestaurants.indexOf(id);
+
+        // savedRestaurants holds ObjectIds — compare via toString()
+        const idx = user.savedRestaurants.findIndex((r) => r.toString() === id);
 
         if (idx === -1) user.savedRestaurants.push(id);
         else user.savedRestaurants.splice(idx, 1);

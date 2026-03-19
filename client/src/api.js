@@ -75,18 +75,6 @@ export const api = {
             if (filters.userId) q = q.eq("user_id", filters.userId);
             return q.order("created_at", { ascending: false }).then(check);
         },
-        monthlyStats: async (userId) => {
-            const { data, error } = await supabase
-                .from("bills")
-                .select("amount, created_at")
-                .eq("user_id", userId);
-            if (error) throw new Error(error.message);
-            return data.reduce((acc, b) => {
-                const month = b.created_at.slice(0, 7);
-                acc[month] = (acc[month] || 0) + b.amount;
-                return acc;
-            }, {});
-        },
         create: (body) =>
             supabase.from("bills").insert(body).select().single().then(check),
         remove: (id) =>
@@ -97,15 +85,14 @@ export const api = {
     users: {
         profile: (userId) =>
             supabase.from("profiles").select("*").eq("id", userId).single().then(check),
-        update: (userId, body) =>
-            supabase.from("profiles").update(body).eq("id", userId).select().single().then(check),
         toggleSave: async (userId, restaurantId) => {
+            // maybeSingle() returns null (not an error) when no row exists
             const { data: existing } = await supabase
                 .from("saved_restaurants")
                 .select("id")
                 .eq("user_id", userId)
                 .eq("restaurant_id", restaurantId)
-                .single();
+                .maybeSingle();
             if (existing) {
                 return supabase.from("saved_restaurants").delete().eq("id", existing.id).then(check);
             } else {
@@ -128,37 +115,41 @@ export const api = {
         },
     },
 
-    // ── AI microservice (FastAPI @ localhost:8000) ────────────────────────────────
-    ai: {
-        /** Scan a receipt image → [{name, qty, price}] */
-        ocr: async (file) => {
-            const fd = new FormData();
-            fd.append("file", file);
-            const res = await fetchWithRetry("http://localhost:8000/ai/ocr/scan", {
-                method: "POST",
-                body: fd,
-            }, { retries: 2, backoffMs: 400 });
-            return res.json();
-        },
+    // ── AI microservice ───────────────────────────────────────────────────────────
+    // Set VITE_AI_BASE_URL in client/.env for production; falls back to localhost for dev
+    ai: (() => {
+        const AI_BASE = (import.meta.env.VITE_AI_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+        return {
+            /** Scan a receipt image → [{name, qty, price}] */
+            ocr: async (file) => {
+                const fd = new FormData();
+                fd.append("file", file);
+                const res = await fetchWithRetry(`${AI_BASE}/ai/ocr/scan`, {
+                    method: "POST",
+                    body: fd,
+                }, { retries: 2, backoffMs: 400 });
+                return res.json();
+            },
 
-        /** Get a Worth-It score for a dish */
-        score: async (body) => {
-            const res = await fetchWithRetry("http://localhost:8000/ai/score/predict", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-            }, { retries: 1, backoffMs: 300 });
-            return res.json();
-        },
+            /** Get a Worth-It score for a dish */
+            score: async (body) => {
+                const res = await fetchWithRetry(`${AI_BASE}/ai/score/predict`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                }, { retries: 1, backoffMs: 300 });
+                return res.json();
+            },
 
-        /** Get personalised dish recommendations */
-        recommend: async (body) => {
-            const res = await fetchWithRetry("http://localhost:8000/ai/recommend/dishes", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-            }, { retries: 1, backoffMs: 300 });
-            return res.json();
-        },
-    },
+            /** Get personalised dish recommendations */
+            recommend: async (body) => {
+                const res = await fetchWithRetry(`${AI_BASE}/ai/recommend/dishes`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                }, { retries: 1, backoffMs: 300 });
+                return res.json();
+            },
+        };
+    })(),
 };

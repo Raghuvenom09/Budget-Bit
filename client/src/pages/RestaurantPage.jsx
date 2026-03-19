@@ -1,15 +1,26 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { MapPin, ChevronLeft, SlidersHorizontal } from "lucide-react";
+import { MapPin, ChevronLeft, SlidersHorizontal, Star as StarIcon } from "lucide-react";
 import { api } from "../api";
+import { useAuth } from "../context/AuthContext";
 import WorthItBadge from "../components/WorthItBadge";
 import StarRating from "../components/StarRating";
 import ScorePill from "../components/ScorePill";
 import SectionHead from "../components/SectionHead";
 
+// Helper: render image_url as an <img> if it's a URL, otherwise as an emoji
+function RestaurantImage({ imageUrl, className, style }) {
+  const isUrl = imageUrl && (imageUrl.startsWith("http") || imageUrl.startsWith("/"));
+  if (isUrl) {
+    return <img src={imageUrl} alt="Restaurant" className={className} style={style} />;
+  }
+  return <span className="float-emoji text-[180px] opacity-30 select-none">{imageUrl || "🍽️"}</span>;
+}
+
 export default function RestaurantPage() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
   const [r, setR] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -26,10 +37,15 @@ export default function RestaurantPage() {
       <div className="w-10 h-10 rounded-full border-4 border-[#E8360A] border-t-transparent animate-spin" />
     </div>
   );
+
   if (error || !r) return (
     <div className="text-center py-20">
       <div className="text-5xl mb-3">😕</div>
-      <p className="text-[#4A2E1A] font-bold">{error || "Restaurant not found"}</p>
+      <p className="text-[#4A2E1A] font-bold mb-4">{error || "Restaurant not found"}</p>
+      <button
+        onClick={() => navigate(-1)}
+        className="text-[#E8360A] font-bold text-sm hover:underline"
+      >← Go Back</button>
     </div>
   );
 
@@ -39,16 +55,20 @@ export default function RestaurantPage() {
     { label: "Community Reviews", value: r.community_reviews ?? 0, raw: `${r.community_reviews ?? 0}/100`, color: "#16a34a" },
   ];
 
+  const reviews = Array.isArray(r.reviews) ? r.reviews : [];
+
   return (
     <div className="pb-16 w-full">
       {/* Hero */}
-      <div className="relative rounded-3xl mt-6 overflow-hidden" style={{ height: 300, background: "linear-gradient(135deg,#FDE8D0,#FFF0D0,#FFF8E0)" }}>
-        <div className="absolute inset-0 flex items-center justify-center text-[180px] opacity-30 select-none">
-          {r.image_url || "🍽️"}
-        </div>
+      <div className="relative rounded-3xl mt-6 overflow-hidden flex items-center justify-center" style={{ height: 300, background: "linear-gradient(135deg,#FDE8D0,#FFF0D0,#FFF8E0)" }}>
+        <RestaurantImage
+          imageUrl={r.image_url}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
         <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(255,248,240,0.98) 0%, rgba(255,248,240,0.3) 55%, transparent 100%)" }} />
         <button
-          onClick={() => navigate("/explore")}
+          onClick={() => navigate(-1)}
+          aria-label="Go back"
           className="absolute top-6 left-6 w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-colors hover:bg-[#FDE8D0]"
           style={{ background: "#ffffff", border: "1.5px solid rgba(232,54,10,0.15)" }}
         >
@@ -63,9 +83,13 @@ export default function RestaurantPage() {
         <div className="absolute bottom-6 left-8 right-8 flex items-end justify-between">
           <div>
             <h1 className="font-display text-4xl font-black text-[#1A0A00] leading-tight">{r.name}</h1>
-            <p className="text-[#8C6A52] text-sm mt-1 flex items-center gap-1.5">
+            <a 
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name + ' ' + (r.address || ''))}`}
+              target="_blank" rel="noreferrer"
+              className="text-[#8C6A52] text-sm mt-1 flex items-center gap-1.5 hover:text-[#E8360A] transition-colors"
+            >
               <MapPin size={13} style={{ color: "#E8360A" }} /> {r.address}
-            </p>
+            </a>
           </div>
           <WorthItBadge score={r.worth_it_score ?? 75} size="lg" />
         </div>
@@ -82,8 +106,19 @@ export default function RestaurantPage() {
         <span className="w-px h-4" style={{ background: "rgba(232,54,10,0.15)" }} />
         <span className="text-[#8C6A52] text-xs flex items-center gap-1"><MapPin size={10} />{r.distance ?? "?"} km away</span>
         <span className="w-px h-4" style={{ background: "rgba(232,54,10,0.15)" }} />
-        <span className="text-[#E8360A] font-black text-xs">₹{r.avg_cost ?? r.price_for_two ?? "—"} for two</span>
+        <span className="text-[#E8360A] font-black text-xs">₹{r.avg_cost ?? "—"} for two</span>
       </div>
+
+      {/* Rate CTA — only for logged-in users */}
+      {user && (
+        <button
+          onClick={() => navigate("/upload")}
+          className="mt-4 w-full py-3 rounded-2xl font-bold text-white text-sm flex items-center justify-center gap-2 shadow-md hover:opacity-90 transition-all"
+          style={{ background: "linear-gradient(135deg,#E8360A,#FF9F1C)" }}
+        >
+          <StarIcon size={16} fill="currentColor" /> Upload a bill &amp; rate this restaurant
+        </button>
+      )}
 
       {/* Two-col layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
@@ -115,25 +150,54 @@ export default function RestaurantPage() {
           </div>
         </div>
 
-        <div className="lg:col-span-2">
-          <SectionHead>🍽️ Top Dishes</SectionHead>
-          {(r.top_dishes || []).length === 0 ? (
-            <p className="text-[#8C6A52] text-sm">No dishes listed yet.</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 stagger">
-              {(r.top_dishes || []).map((d, i) => (
-                <div key={i} className="card-warm p-4 flex items-center gap-4">
-                  <div className="text-3xl w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg,#FDE8D0,#FFF0D0)" }}>
-                    {d.emoji || "🍽️"}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Top Dishes */}
+          <div>
+            <SectionHead>🍽️ Top Dishes</SectionHead>
+            {(r.top_dishes || []).length === 0 ? (
+              <p className="text-[#8C6A52] text-sm">No dishes listed yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 stagger">
+                {(Array.isArray(r.top_dishes) ? r.top_dishes : []).map((d, i) => (
+                  <div key={i} className="card-warm p-4 flex items-center gap-4">
+                    <div className="text-3xl w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg,#FDE8D0,#FFF0D0)" }}>
+                      {d.emoji || "🍽️"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-[#1A0A00] text-sm truncate">{d.name}</p>
+                      <p className="text-[#E8360A] font-black text-xs mt-0.5">₹{d.price}</p>
+                      {d.score != null && <div className="mt-1.5"><ScorePill score={d.score} /></div>}
+                    </div>
+                    {d.score != null && <WorthItBadge score={d.score} size="sm" />}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-[#1A0A00] text-sm truncate">{d.name}</p>
-                    <p className="text-[#E8360A] font-black text-xs mt-0.5">₹{d.price}</p>
-                    {d.score != null && <div className="mt-1.5"><ScorePill score={d.score} /></div>}
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Community Reviews */}
+          {reviews.length > 0 && (
+            <div>
+              <SectionHead>💬 Community Reviews</SectionHead>
+              <div className="space-y-4">
+                {reviews.slice(0, 5).map((rev, i) => (
+                  <div key={rev.id || i} className="card-warm p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-bold text-[#1A0A00] text-sm">Anonymous Reviewer</p>
+                      <span className="text-[#E8360A] font-black text-xs">Score: {rev.overall_score ?? "—"}</span>
+                    </div>
+                    {Array.isArray(rev.dishes) && rev.dishes.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {rev.dishes.map((d, j) => (
+                          <span key={j} className="text-[#B52800] text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#FDE8D0" }}>
+                            {d.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {d.score != null && <WorthItBadge score={d.score} size="sm" />}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>

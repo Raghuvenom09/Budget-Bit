@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Camera, Image as ImageIcon, Receipt, Clock, Zap,
-  CheckCircle2, Trash2, Star, MapPin, Calendar, Search,
-  ShieldCheck, ChevronDown,
+  Camera, Image as ImageIcon, Receipt, Zap,
+  CheckCircle2, Trash2, Star, MapPin, Calendar, Search, AlertCircle,
 } from "lucide-react";
 import SectionHead from "../components/SectionHead";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api";
+
+const MAX_FILE_SIZE_MB = 10;
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
 
 export default function UploadPage() {
   const navigate = useNavigate();
@@ -22,6 +24,7 @@ export default function UploadPage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [savingBill, setSavingBill] = useState(false);
   const [ocrError, setOcrError] = useState(null);
+  const [fileError, setFileError] = useState(null);
   const [dishes, setDishes] = useState([]);
   const [scanProgress, setScanProgress] = useState(0);
 
@@ -42,7 +45,6 @@ export default function UploadPage() {
     if (!name) return;
     try {
       const all = await api.restaurants.list({});
-      // Simple substring match (case-insensitive)
       const lower = name.toLowerCase();
       const exact = all.find((r) => r.name.toLowerCase() === lower);
       if (exact) { setMatchedRestaurant(exact); return; }
@@ -50,7 +52,6 @@ export default function UploadPage() {
         r.name.toLowerCase().includes(lower) || lower.includes(r.name.toLowerCase())
       );
       if (partial) { setMatchedRestaurant(partial); return; }
-      // No match — store all for user to pick
       setRestaurantResults(all);
       setRestaurantSearch(name);
       setShowRestaurantPicker(true);
@@ -66,13 +67,34 @@ export default function UploadPage() {
       try {
         const results = await api.restaurants.list({ search: restaurantSearch });
         setRestaurantResults(results);
-      } catch { /* ignore */ }
+      } catch (e) {
+        console.error("Restaurant search failed:", e);
+      }
     }, 300);
     return () => clearTimeout(timeout);
   }, [restaurantSearch, showRestaurantPicker]);
 
+  const validateFile = (file) => {
+    if (!file) return "No file selected.";
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return "Invalid file type. Please upload a JPG, PNG, WebP, or PDF.";
+    }
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      return `File is too large. Maximum size is ${MAX_FILE_SIZE_MB}MB.`;
+    }
+    return null;
+  };
+
   const handleFileSelected = async (file) => {
     if (!file) return;
+
+    const validationError = validateFile(file);
+    if (validationError) {
+      setFileError(validationError);
+      return;
+    }
+
+    setFileError(null);
     setUploadedFile(file);
     setOcrError(null);
     setOcrRestaurant(null);
@@ -81,52 +103,53 @@ export default function UploadPage() {
     setOcrConfidence(null);
     setMatchedRestaurant(null);
     setShowRestaurantPicker(false);
+    setBillImageUrl(null);
     setStage("preview");
 
     // Create local preview
     setImagePreview(URL.createObjectURL(file));
 
-    // Fake progress while waiting
+    // Simulate progress while OCR runs (indeterminate)
     setScanProgress(0);
     const progressInterval = setInterval(() => {
-      setScanProgress((p) => (p >= 90 ? 90 : p + Math.random() * 15));
+      setScanProgress((p) => (p >= 85 ? 85 : p + Math.random() * 12));
     }, 400);
 
-    // Upload image to Supabase storage in background
-    if (user) {
-      try {
-        const url = await api.storage.uploadBillImage(user.id, file);
-        setBillImageUrl(url);
-      } catch (e) {
-        console.error("Image upload failed:", e);
-      }
-    }
-
-    // Call Gemini OCR to extract everything from the bill
+    // Call AI OCR to extract everything from the bill
+    let ocrResult = null;
     try {
-      const result = await api.ai.ocr(file);
+      ocrResult = await api.ai.ocr(file);
 
-      // Store all metadata
-      setOcrRestaurant(result.restaurant || null);
-      setOcrDate(result.date || null);
-      setOcrTotal(result.total || null);
-      setOcrConfidence(result.confidence ?? null);
+      setOcrRestaurant(ocrResult.restaurant || null);
+      setOcrDate(ocrResult.date || null);
+      setOcrTotal(ocrResult.total || null);
+      setOcrConfidence(ocrResult.confidence ?? null);
 
-      const extracted = (result.items || []).map((item) => ({
+      const extracted = (ocrResult.items || []).map((item) => ({
         name: item.name || "",
         price: Number(item.price) || 0,
         qty: Number(item.qty) || 1,
       }));
       setDishes(extracted.length ? extracted : [{ name: "", price: 0, qty: 1 }]);
 
-      // Try to match restaurant from OCR
-      if (result.restaurant) {
-        await matchRestaurant(result.restaurant);
+      if (ocrResult.restaurant) {
+        await matchRestaurant(ocrResult.restaurant);
       }
     } catch (e) {
       console.error("OCR failed:", e);
       setOcrError("Couldn't read the bill automatically — please enter items manually.");
       setDishes([{ name: "", price: 0, qty: 1 }]);
+    }
+
+    // Upload image to Supabase storage AFTER OCR — avoids orphaned files on OCR failure
+    if (user && ocrResult !== null) {
+      try {
+        const url = await api.storage.uploadBillImage(user.id, file);
+        setBillImageUrl(url);
+      } catch (e) {
+        console.error("Image upload failed:", e);
+        // Non-blocking — bill can still be saved without image URL
+      }
     }
 
     clearInterval(progressInterval);
@@ -135,19 +158,22 @@ export default function UploadPage() {
   };
 
   const addDish = () => setDishes((prev) => [...prev, { name: "", price: 0, qty: 1 }]);
-  const updateDish = (idx, field, val) => setDishes((prev) => prev.map((d, i) => (i === idx ? { ...d, [field]: val } : d)));
+  const updateDish = (idx, field, val) =>
+    setDishes((prev) => prev.map((d, i) => (i === idx ? { ...d, [field]: val } : d)));
   const removeDish = (idx) => setDishes((prev) => prev.filter((_, i) => i !== idx));
+
+  // Correct total: sum of price × qty for each dish
+  const billTotal = dishes.reduce((a, d) => a + d.price * (d.qty || 1), 0);
 
   const handleRate = async () => {
     const restaurantId = matchedRestaurant?.id || null;
 
-    // Save bill to Supabase then go to rate page
     if (user) {
       setSavingBill(true);
       try {
         await api.bills.create({
           user_id: user.id,
-          amount: dishes.reduce((a, d) => a + d.price, 0),
+          amount: billTotal,
           image_url: billImageUrl,
           dishes: dishes.map((d) => d.name),
           restaurant_id: restaurantId,
@@ -158,16 +184,19 @@ export default function UploadPage() {
         setSavingBill(false);
       }
     }
+
     navigate("/rate", {
       state: {
         dishes,
         restaurantId,
         restaurantName: matchedRestaurant?.name || ocrRestaurant || null,
+        restaurantCuisine: matchedRestaurant?.cuisine || null,
+        restaurantCity: matchedRestaurant?.city || null,
       },
     });
   };
 
-  // Cleanup preview URL on unmount
+  // Cleanup preview URL on unmount or when imagePreview changes
   useEffect(() => {
     return () => { if (imagePreview) URL.revokeObjectURL(imagePreview); };
   }, [imagePreview]);
@@ -190,6 +219,13 @@ export default function UploadPage() {
       <div className="mt-8">
         {stage === "idle" && (
           <div className="stagger">
+            {fileError && (
+              <div className="mb-4 p-4 rounded-2xl flex items-center gap-3 border-2 text-red-700" style={{ background: "#FEE2E2", borderColor: "rgba(239,68,68,0.2)" }}>
+                <AlertCircle size={18} className="flex-shrink-0" />
+                <p className="text-sm font-semibold">{fileError}</p>
+              </div>
+            )}
+
             <div
               onClick={() => fileInputRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -213,7 +249,7 @@ export default function UploadPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,application/pdf"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
               className="hidden"
               onChange={(e) => handleFileSelected(e.target.files[0])}
             />
@@ -256,7 +292,6 @@ export default function UploadPage() {
         {stage === "preview" && (
           <div className="card-warm p-6">
             <div className="flex flex-col sm:flex-row items-center gap-6">
-              {/* Bill image preview */}
               {imagePreview && (
                 <div className="w-32 h-44 rounded-2xl overflow-hidden border-2 flex-shrink-0 shadow-lg" style={{ borderColor: "rgba(232,54,10,0.15)" }}>
                   <img src={imagePreview} alt="Bill" className="w-full h-full object-cover" />
@@ -274,7 +309,6 @@ export default function UploadPage() {
                 <p className="text-[#1A0A00] font-bold text-lg mb-1">Scanning your bill…</p>
                 <p className="text-[#8C6A52] text-sm mb-4">AI is extracting dishes, prices &amp; restaurant info</p>
 
-                {/* Progress bar */}
                 <div className="w-full bg-[#FDE8D0] rounded-full h-2.5 overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-500 ease-out"
@@ -284,7 +318,7 @@ export default function UploadPage() {
                     }}
                   />
                 </div>
-                <p className="text-[#8C6A52] text-xs mt-2 font-semibold">{Math.round(scanProgress)}% complete</p>
+                <p className="text-[#8C6A52] text-xs mt-2 font-semibold">{Math.round(scanProgress)}%</p>
               </div>
             </div>
           </div>
@@ -324,14 +358,12 @@ export default function UploadPage() {
             {/* ── Restaurant & Bill info card ────────────────────────────── */}
             <div className="card-warm p-5 mb-6">
               <div className="flex gap-4">
-                {/* Bill thumbnail */}
                 {imagePreview && (
                   <div className="w-20 h-28 rounded-xl overflow-hidden border-2 flex-shrink-0 shadow-md" style={{ borderColor: "rgba(232,54,10,0.1)" }}>
                     <img src={imagePreview} alt="Bill" className="w-full h-full object-cover" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  {/* Restaurant name from OCR */}
                   {matchedRestaurant ? (
                     <div className="flex items-center gap-2 mb-2">
                       <MapPin size={14} className="text-[#E8360A] flex-shrink-0" />
@@ -357,7 +389,6 @@ export default function UploadPage() {
                     </div>
                   )}
 
-                  {/* Date */}
                   {ocrDate && (
                     <div className="flex items-center gap-2 mb-2">
                       <Calendar size={14} className="text-[#8C6A52] flex-shrink-0" />
@@ -365,7 +396,6 @@ export default function UploadPage() {
                     </div>
                   )}
 
-                  {/* OCR Total vs calculated */}
                   {ocrTotal != null && ocrTotal > 0 && (
                     <div className="flex items-center gap-2">
                       <Receipt size={14} className="text-[#8C6A52] flex-shrink-0" />
@@ -407,16 +437,13 @@ export default function UploadPage() {
                   ) : restaurantResults.map((r) => (
                     <button
                       key={r.id}
-                      onClick={() => {
-                        setMatchedRestaurant(r);
-                        setShowRestaurantPicker(false);
-                      }}
+                      onClick={() => { setMatchedRestaurant(r); setShowRestaurantPicker(false); }}
                       className="w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 hover:bg-[#FDE8D0] transition-colors"
                     >
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base" style={{ background: "linear-gradient(135deg,#FDE8D0,#FFF0D0)" }}>🍽️</div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-[#1A0A00] text-xs truncate">{r.name}</p>
-                        <p className="text-[#8C6A52] text-[10px]">{r.cuisine} · ₹{r.avg_cost} avg</p>
+                        <p className="text-[#8C6A52] text-[10px]">{r.cuisine} · {r.avg_cost != null ? `₹${r.avg_cost} avg` : "—"}</p>
                       </div>
                     </button>
                   ))}
@@ -444,20 +471,38 @@ export default function UploadPage() {
                     <input
                       value={d.name}
                       onChange={(e) => updateDish(idx, "name", e.target.value)}
+                      placeholder="Dish name"
                       className="w-full font-bold text-[#1A0A00] text-sm bg-transparent focus:outline-none border-b-2 border-transparent focus:border-[#E8360A]/40 transition-colors pb-0.5"
                     />
-                    <div className="flex items-center gap-1 mt-1.5">
-                      <span className="text-[#8C6A52] text-xs">₹</span>
-                      <input
-                        type="number"
-                        value={d.price}
-                        onChange={(e) => updateDish(idx, "price", Number(e.target.value))}
-                        className="text-[#E8360A] font-black text-sm bg-transparent focus:outline-none w-20"
-                      />
+                    <div className="flex items-center gap-3 mt-2">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[#8C6A52] text-xs">₹</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={d.price}
+                          onChange={(e) => updateDish(idx, "price", Number(e.target.value))}
+                          aria-label="Price"
+                          className="text-[#E8360A] font-black text-sm bg-transparent focus:outline-none w-16"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 border-l pl-3" style={{ borderColor: "rgba(232,54,10,0.15)" }}>
+                        <span className="text-[#8C6A52] text-xs">×</span>
+                        <input
+                          type="number"
+                          min="1"
+                          value={d.qty || 1}
+                          onChange={(e) => updateDish(idx, "qty", Math.max(1, Number(e.target.value)))}
+                          aria-label="Quantity"
+                          className="text-[#4A2E1A] font-bold text-sm bg-transparent focus:outline-none w-8"
+                        />
+                        <span className="text-[#8C6A52] text-[10px]">qty</span>
+                      </div>
                     </div>
                   </div>
                   <button
                     onClick={() => removeDish(idx)}
+                    aria-label="Remove dish"
                     className="w-8 h-8 flex items-center justify-center rounded-full text-[#F9C9A0] hover:text-red-500 hover:bg-red-50 transition-colors"
                   >
                     <Trash2 size={15} />
@@ -471,7 +516,7 @@ export default function UploadPage() {
               style={{ background: "#FDE8D0", borderColor: "rgba(232,54,10,0.15)" }}
             >
               <span className="text-[#4A2E1A] font-bold text-sm">Total Amount</span>
-              <span className="font-display font-black text-2xl text-[#E8360A]">₹{dishes.reduce((a, d) => a + d.price, 0)}</span>
+              <span className="font-display font-black text-2xl text-[#E8360A]">₹{billTotal}</span>
             </div>
 
             <button

@@ -9,23 +9,31 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setError("Please enter your full name.");
+      return;
+    }
     if (password.length < 6) {
       setError("Password must be at least 6 characters.");
       return;
     }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
     setLoading(true);
     try {
-      await register(name, email, password);
-      // Supabase may require email confirmation — show success either way
+      await register(trimmedName, email, password);
       setSuccess(true);
     } catch (err) {
       setError(err?.message || "Registration failed. Please try again.");
@@ -129,6 +137,19 @@ export default function RegisterPage() {
                   {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+            </div>
+
+            <div>
+              <label className="text-[#4A2E1A] text-xs font-bold uppercase tracking-wider block mb-2">Confirm Password</label>
+              <input
+                type={showPw ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter password"
+                required
+                className="w-full px-4 py-3.5 rounded-2xl text-sm font-medium text-[#1A0A00] placeholder-[#8C6A52]/50 outline-none border-2 transition-all focus:border-[#E8360A]/50"
+                style={{ background: "#FFF8F0", borderColor: "rgba(232,54,10,0.12)" }}
+              />
             </div>
 
             <button

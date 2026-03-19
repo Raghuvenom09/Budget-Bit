@@ -2,32 +2,47 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import {
   User, Star, Receipt, CreditCard, FileText,
-  CheckCircle2, TrendingUp, Award, Settings, LogOut,
+  CheckCircle2, TrendingUp, Award, LogOut,
 } from "lucide-react";
 import SectionHead from "../components/SectionHead";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api";
 
+// Derive the current month's bills
+function currentMonthBills(bills) {
+  const now = new Date();
+  return bills.filter((b) => {
+    const d = new Date(b.created_at);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  });
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { user, profile, logout } = useAuth();
   const [bills, setBills] = useState([]);
+  const [billsLoading, setBillsLoading] = useState(true);
+  const [billsError, setBillsError] = useState(null);
 
   useEffect(() => {
     if (user?.id) {
-      api.bills.list({ userId: user.id }).then(setBills).catch(console.error);
+      setBillsLoading(true);
+      api.bills.list({ userId: user.id })
+        .then(setBills)
+        .catch((e) => setBillsError(e.message))
+        .finally(() => setBillsLoading(false));
     }
   }, [user]);
 
   const totalSpent = bills.reduce((a, b) => a + (b.amount || 0), 0);
-  // Estimate savings: assume 10% saved when a bill is scanned vs eating without tracking
-  const totalSaved = Math.round(totalSpent * 0.1);
+  const thisMonthBills = currentMonthBills(bills);
+  const thisMonthSpent = thisMonthBills.reduce((a, b) => a + (b.amount || 0), 0);
   const avgRating = bills.length
     ? (bills.reduce((a, b) => a + (b.avg_rating || 4.0), 0) / bills.length).toFixed(1)
     : "—";
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/");
   };
 
@@ -57,7 +72,7 @@ export default function ProfilePage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8 stagger">
         {[
           { label: "Total Spent", value: `₹${totalSpent.toLocaleString()}`, accent: "#3b82f6", bg: "#EFF6FF", icon: <CreditCard size={20} /> },
-          { label: "Money Saved", value: `₹${totalSaved.toLocaleString()}`, accent: "#16a34a", bg: "#DCFCE7", icon: <CheckCircle2 size={20} /> },
+          { label: "This Month", value: `₹${thisMonthSpent.toLocaleString()}`, accent: "#16a34a", bg: "#DCFCE7", icon: <TrendingUp size={20} /> },
           { label: "Bills Scanned", value: String(bills.length), accent: "#a855f7", bg: "#F3E8FF", icon: <Receipt size={20} /> },
           { label: "Avg Rating", value: `${avgRating}★`, accent: "#FF9F1C", bg: "#FFF7ED", icon: <Star size={20} className="fill-current" /> },
         ].map((s) => (
@@ -71,20 +86,37 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* Savings banner */}
-      <div className="mt-6 rounded-2xl p-5 flex items-center gap-4 border-2" style={{ background: "#DCFCE7", borderColor: "rgba(22,163,74,0.2)" }}>
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(22,163,74,0.15)" }}>
-          <TrendingUp size={22} className="text-green-600" />
+      {/* This month summary */}
+      {thisMonthBills.length > 0 && (
+        <div className="mt-6 rounded-2xl p-5 flex items-center gap-4 border-2" style={{ background: "#DCFCE7", borderColor: "rgba(22,163,74,0.2)" }}>
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(22,163,74,0.15)" }}>
+            <TrendingUp size={22} className="text-green-600" />
+          </div>
+          <div>
+            <p className="text-green-800 font-bold text-sm">
+              {thisMonthBills.length} bill{thisMonthBills.length !== 1 ? "s" : ""} this month · ₹{thisMonthSpent.toLocaleString()} spent
+            </p>
+            <p className="text-green-600 text-xs mt-0.5 font-medium">Keep scanning to build your dining history.</p>
+          </div>
         </div>
-        <div>
-          <p className="text-green-800 font-bold text-sm">You saved ₹{totalSaved} this month! 🎉</p>
-          <p className="text-green-600 text-xs mt-0.5 font-medium">BudgetBit found smarter alternatives for you.</p>
-        </div>
-      </div>
+      )}
 
       <div className="mt-10">
         <SectionHead sub="Your complete dining history">Past Bills</SectionHead>
-        {bills.length === 0 ? (
+
+        {billsLoading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="card-warm p-5 animate-pulse h-32" style={{ background: "#FFF8F0" }} />
+            ))}
+          </div>
+        ) : billsError ? (
+          <div className="card-warm py-12 text-center">
+            <div className="text-4xl mb-2">⚠️</div>
+            <p className="text-[#4A2E1A] font-bold text-sm">Failed to load bills</p>
+            <p className="text-[#8C6A52] text-xs mt-1">{billsError}</p>
+          </div>
+        ) : bills.length === 0 ? (
           <div className="card-warm py-16 text-center">
             <div className="text-5xl mb-3">🧻</div>
             <p className="text-[#8C6A52] text-sm font-semibold">No bills yet — upload your first one!</p>
@@ -97,7 +129,10 @@ export default function ProfilePage() {
                   <div>
                     <h3 className="font-bold text-[#1A0A00] text-base">{bill.restaurants?.name || "Restaurant"}</h3>
                     <p className="text-[#8C6A52] text-xs mt-1 flex items-center gap-1">
-                      <FileText size={10} /> {new Date(bill.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      <FileText size={10} />
+                      {bill.created_at
+                        ? new Date(bill.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                        : "—"}
                     </p>
                   </div>
                   <div className="text-right">
@@ -111,10 +146,10 @@ export default function ProfilePage() {
                     )}
                   </div>
                 </div>
-                {bill.dishes && (
+                {Array.isArray(bill.dishes) && bill.dishes.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-3">
-                    {bill.dishes.map((d) => (
-                      <span key={d} className="text-[#B52800] font-semibold text-[10px] px-2.5 py-1 rounded-full" style={{ background: "#FDE8D0" }}>{d}</span>
+                    {bill.dishes.map((d, i) => (
+                      <span key={i} className="text-[#B52800] font-semibold text-[10px] px-2.5 py-1 rounded-full" style={{ background: "#FDE8D0" }}>{d}</span>
                     ))}
                   </div>
                 )}
@@ -128,29 +163,9 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Preferences */}
-      <div className="mt-8 card-warm p-6">
-        <h3 className="text-[#1A0A00] font-bold text-sm mb-5 flex items-center gap-2">
-          <Settings size={16} style={{ color: "#E8360A" }} /> Preferences
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { label: "Favorite Cuisine", value: "South Indian", emoji: "🥞" },
-            { label: "Avg Budget", value: "₹500 for two", emoji: "💰" },
-            { label: "Location", value: "Bengaluru, KA", emoji: "📍" },
-          ].map((p) => (
-            <div key={p.label} className="rounded-2xl p-4" style={{ background: "#FFF8F0", border: "1.5px solid rgba(232,54,10,0.08)" }}>
-              <p className="text-3xl mb-2">{p.emoji}</p>
-              <p className="text-[#8C6A52] text-xs font-semibold mb-0.5">{p.label}</p>
-              <p className="text-[#1A0A00] font-bold text-sm">{p.value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
       <button
         onClick={handleLogout}
-        className="w-full mt-6 py-4 rounded-2xl font-bold text-sm text-red-500 hover:bg-red-50 transition-all flex items-center justify-center gap-2 border-2"
+        className="w-full mt-8 py-4 rounded-2xl font-bold text-sm text-red-500 hover:bg-red-50 transition-all flex items-center justify-center gap-2 border-2"
         style={{ borderColor: "rgba(239,68,68,0.15)" }}
       >
         <LogOut size={16} /> Sign Out
