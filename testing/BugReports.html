@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug Reports - Budget Bit | Neurabit Solutions</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #fff;
+            padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        .header h1 { font-size: 32px; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        h2 {
+            color: #dc2626;
+            border-bottom: 2px solid #dc2626;
+            padding-bottom: 10px;
+            margin: 30px 0 20px;
+            font-size: 22px;
+        }
+        h3 { color: #333; margin: 20px 0 10px; font-size: 18px; }
+        .bug-card {
+            background: #fff;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .bug-card.high {
+            border-color: #dc2626;
+            border-left: 6px solid #dc2626;
+        }
+        .bug-card.medium {
+            border-color: #f59e0b;
+            border-left: 6px solid #f59e0b;
+        }
+        .bug-card.low {
+            border-color: #3b82f6;
+            border-left: 6px solid #3b82f6;
+        }
+        .bug-id {
+            display: inline-block;
+            background: #dc2626;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .bug-card.medium .bug-id { background: #f59e0b; }
+        .bug-card.low .bug-id { background: #3b82f6; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            background: #f9f9f9;
+            font-weight: 600;
+            width: 150px;
+        }
+        .severity-high { color: #dc2626; font-weight: bold; }
+        .severity-medium { color: #f59e0b; font-weight: bold; }
+        .severity-low { color: #3b82f6; font-weight: bold; }
+        .priority-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .priority-p1 { background: #fee2e2; color: #dc2626; }
+        .priority-p2 { background: #fef3c7; color: #b45309; }
+        .priority-p3 { background: #dbeafe; color: #2563eb; }
+        .status-open {
+            background: #dcfce7;
+            color: #15803d;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .steps {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .steps ol { margin-left: 20px; }
+        .steps li { margin: 5px 0; }
+        .expected {
+            background: #dcfce7;
+            border-left: 4px solid #15803d;
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .actual {
+            background: #fee2e2;
+            border-left: 4px solid #dc2626;
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        @media print {
+            body { padding: 20px; }
+            .bug-card { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🐛 Bug Reports</h1>
+    <p><strong>Project:</strong> Budget Bit - AI-Powered Food Review Platform</p>
+    <p><strong>Date:</strong> 28 March 2026 | <strong>Tester:</strong> Raghavendra | <strong>Company:</strong> Neurabit Solutions</p>
+</div>
+
+<h2>Bug Summary</h2>
+<table>
+    <tr><th>Bug ID</th><th>Title</th><th>Severity</th><th>Priority</th><th>Status</th></tr>
+    <tr><td>BR_001</td><td>OCR doesn't support image input</td><td class="severity-high">High</td><td><span class="priority-badge priority-p1">P1</span></td><td><span class="status-open">Open</span></td></tr>
+    <tr><td>BR_002</td><td>Home page overlap on mobile</td><td class="severity-medium">Medium</td><td><span class="priority-badge priority-p2">P2</span></td><td><span class="status-open">Open</span></td></tr>
+    <tr><td>BR_003</td><td>Cannot add new restaurant</td><td class="severity-medium">Medium</td><td><span class="priority-badge priority-p2">P2</span></td><td><span class="status-open">Open</span></td></tr>
+    <tr><td>BR_004</td><td>Restaurant selection not working</td><td class="severity-medium">Medium</td><td><span class="priority-badge priority-p2">P2</span></td><td><span class="status-open">Open</span></td></tr>
+    <tr><td>BR_005</td><td>Explore page overlap on mobile</td><td class="severity-medium">Medium</td><td><span class="priority-badge priority-p2">P2</span></td><td><span class="status-open">Open</span></td></tr>
+    <tr><td>BR_006</td><td>Empty bill upload accepted without validation</td><td class="severity-medium">Medium</td><td><span class="priority-badge priority-p2">P2</span></td><td><span class="status-open">Open</span></td></tr>
+    <tr><td>BR_007</td><td>Bill history display issue</td><td class="severity-low">Low</td><td><span class="priority-badge priority-p3">P3</span></td><td><span class="status-open">Open</span></td></tr>
+</table>
+
+<h2>Bug Details</h2>
+
+<!-- BR_001 -->
+<div class="bug-card high">
+    <div class="bug-id">BR_001</div>
+    <h3>OCR doesn't support image input</h3>
+    <table>
+        <tr><th>Severity</th><td class="severity-high">High</td></tr>
+        <tr><th>Priority</th><td><span class="priority-badge priority-p1">P1</span></td></tr>
+        <tr><th>Date Reported</th><td>28 March 2026</td></tr>
+        <tr><th>Tester</th><td>Raghavendra</td></tr>
+        <tr><th>Status</th><td><span class="status-open">Open</span></td></tr>
+    </table>
+    <div class="steps">
+        <strong>Steps to Reproduce:</strong>
+        <ol>
+            <li>Login to Budget Bit</li>
+            <li>Go to Upload page</li>
+            <li>Upload any bill image</li>
+            <li>Click scan/upload button</li>
+        </ol>
+    </div>
+    <div class="expected">
+        <strong>Expected Result:</strong><br>
+        OCR should extract dish names and prices from the bill image
+    </div>
+    <div class="actual">
+        <strong>Actual Result:</strong><br>
+        Error message shown: "ERROR: Cannot read image.png (this model does not support image input)"
+    </div>
+</div>
+
+<!-- BR_002 -->
+<div class="bug-card medium">
+    <div class="bug-id">BR_002</div>
+    <h3>Home page elements overlap on mobile/responsive view</h3>
+    <table>
+        <tr><th>Severity</th><td class="severity-medium">Medium</td></tr>
+        <tr><th>Priority</th><td><span class="priority-badge priority-p2">P2</span></td></tr>
+        <tr><th>Date Reported</th><td>28 March 2026</td></tr>
+        <tr><th>Tester</th><td>Raghavendra</td></tr>
+        <tr><th>Status</th><td><span class="status-open">Open</span></td></tr>
+    </table>
+    <div class="steps">
+        <strong>Steps to Reproduce:</strong>
+        <ol>
+            <li>Open Budget Bit in Chrome</li>
+            <li>Press F12 to open DevTools</li>
+            <li>Click phone/tablet icon (responsive design mode)</li>
+            <li>Set to mobile/small screen viewport (375px)</li>
+            <li>Observe Home page</li>
+        </ol>
+    </div>
+    <div class="expected">
+        <strong>Expected Result:</strong><br>
+        Elements should stack vertically, no overlapping content, all text/buttons/images visible
+    </div>
+    <div class="actual">
+        <strong>Actual Result:</strong><br>
+        Elements overlap each other - text/images appear on top of each other, UI is broken on mobile
+    </div>
+</div>
+
+<!-- BR_003 -->
+<div class="bug-card medium">
+    <div class="bug-id">BR_003</div>
+    <h3>Users cannot add new restaurant when their restaurant is not in database</h3>
+    <table>
+        <tr><th>Severity</th><td class="severity-medium">Medium</td></tr>
+        <tr><th>Priority</th><td><span class="priority-badge priority-p2">P2</span></td></tr>
+        <tr><th>Date Reported</th><td>28 March 2026</td></tr>
+        <tr><th>Tester</th><td>Raghavendra</td></tr>
+        <tr><th>Status</th><td><span class="status-open">Open</span></td></tr>
+    </table>
+    <div class="steps">
+        <strong>Steps to Reproduce:</strong>
+        <ol>
+            <li>User wants to upload a bill for a restaurant</li>
+            <li>Restaurant is NOT in the database</li>
+            <li>User tries to find option to add new restaurant</li>
+        </ol>
+    </div>
+    <div class="expected">
+        <strong>Expected Result:</strong><br>
+        User should be able to add new restaurant to database
+    </div>
+    <div class="actual">
+        <strong>Actual Result:</strong><br>
+        No option to add new restaurant found - only existing restaurants can be selected
+    </div>
+</div>
+
+<!-- BR_004 -->
+<div class="bug-card medium">
+    <div class="bug-id">BR_004</div>
+    <h3>Restaurant selection not working during bill upload</h3>
+    <table>
+        <tr><th>Severity</th><td class="severity-medium">Medium</td></tr>
+        <tr><th>Priority</th><td><span class="priority-badge priority-p2">P2</span></td></tr>
+        <tr><th>Date Reported</th><td>28 March 2026</td></tr>
+        <tr><th>Tester</th><td>Raghavendra</td></tr>
+        <tr><th>Status</th><td><span class="status-open">Open</span></td></tr>
+    </table>
+    <div class="steps">
+        <strong>Steps to Reproduce:</strong>
+        <ol>
+            <li>Go to Upload page</li>
+            <li>Upload a bill image</li>
+            <li>Try to select/specify the restaurant from the option shown</li>
+            <li>Observe if restaurant is linked to the bill</li>
+        </ol>
+    </div>
+    <div class="expected">
+        <strong>Expected Result:</strong><br>
+        Selected restaurant should be linked to the uploaded bill and saved
+    </div>
+    <div class="actual">
+        <strong>Actual Result:</strong><br>
+        Restaurant option appears but selecting it doesn't work - bill stays unlinked to restaurant
+    </div>
+</div>
+
+<!-- BR_005 -->
+<div class="bug-card medium">
+    <div class="bug-id">BR_005</div>
+    <h3>Explore page elements overlap on mobile/responsive view</h3>
+    <table>
+        <tr><th>Severity</th><td class="severity-medium">Medium</td></tr>
+        <tr><th>Priority</th><td><span class="priority-badge priority-p2">P2</span></td></tr>
+        <tr><th>Date Reported</th><td>28 March 2026</td></tr>
+        <tr><th>Tester</th><td>Raghavendra</td></tr>
+        <tr><th>Status</th><td><span class="status-open">Open</span></td></tr>
+    </table>
+    <div class="steps">
+        <strong>Steps to Reproduce:</strong>
+        <ol>
+            <li>Open Budget Bit in Chrome</li>
+            <li>Press F12 to open DevTools</li>
+            <li>Click phone/tablet icon (responsive design mode)</li>
+            <li>Set to mobile/small screen viewport (375px)</li>
+            <li>Navigate to Explore page</li>
+        </ol>
+    </div>
+    <div class="expected">
+        <strong>Expected Result:</strong><br>
+        Elements should stack vertically, restaurant cards properly displayed
+    </div>
+    <div class="actual">
+        <strong>Actual Result:</strong><br>
+        Elements overlap each other on Explore page similar to Home page
+    </div>
+</div>
+
+<!-- BR_006 -->
+<div class="bug-card medium">
+    <div class="bug-id">BR_006</div>
+    <h3>Empty bill upload accepted without validation</h3>
+    <table>
+        <tr><th>Severity</th><td class="severity-medium">Medium</td></tr>
+        <tr><th>Priority</th><td><span class="priority-badge priority-p2">P2</span></td></tr>
+        <tr><th>Date Reported</th><td>28 March 2026</td></tr>
+        <tr><th>Tester</th><td>Raghavendra</td></tr>
+        <tr><th>Status</th><td><span class="status-open">Open</span></td></tr>
+    </table>
+    <div class="steps">
+        <strong>Steps to Reproduce:</strong>
+        <ol>
+            <li>Go to Upload page</li>
+            <li>Upload an empty bill or image with no receipt data</li>
+            <li>Try to proceed/save without any extracted items</li>
+        </ol>
+    </div>
+    <div class="expected">
+        <strong>Expected Result:</strong><br>
+        Should show error message: "Please upload a valid bill with items" or reject empty upload
+    </div>
+    <div class="actual">
+        <strong>Actual Result:</strong><br>
+        App accepts empty bill upload without any validation error
+    </div>
+</div>
+
+<!-- BR_007 -->
+<div class="bug-card low">
+    <div class="bug-id">BR_007</div>
+    <h3>Bill history display issue</h3>
+    <table>
+        <tr><th>Severity</th><td class="severity-low">Low</td></tr>
+        <tr><th>Priority</th><td><span class="priority-badge priority-p3">P3</span></td></tr>
+        <tr><th>Date Reported</th><td>28 March 2026</td></tr>
+        <tr><th>Tester</th><td>Raghavendra</td></tr>
+        <tr><th>Status</th><td><span class="status-open">Open</span></td></tr>
+    </table>
+    <div class="steps">
+        <strong>Steps to Reproduce:</strong>
+        <ol>
+            <li>Login to Budget Bit</li>
+            <li>Go to Profile page</li>
+            <li>Check "Bill History" section</li>
+            <li>Observe how bills are displayed</li>
+        </ol>
+    </div>
+    <div class="expected">
+        <strong>Expected Result:</strong><br>
+        Should show list of uploaded bills with details (restaurant, amount, date)
+    </div>
+    <div class="actual">
+        <strong>Actual Result:</strong><br>
+        Shows count of uploaded bills but may have display issues
+    </div>
+</div>
+
+<div style="margin-top: 50px; padding-top: 20px; border-top: 2px solid #ddd; text-align: center; color: #666; font-size: 12px;">
+    <p><strong>Total Bugs:</strong> 7 | <strong>High:</strong> 1 | <strong>Medium:</strong> 5 | <strong>Low:</strong> 1</p>
+    <p>Document prepared for Neurabit Solutions Software Testing Assessment</p>
+</div>
+
+</body>
+</html>

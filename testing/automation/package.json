@@ -1,0 +1,14 @@
+{
+  "name": "budget-bit-automation",
+  "version": "1.0.0",
+  "description": "Playwright automation tests for Budget Bit",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.42.0"
+  }
+}

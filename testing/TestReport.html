@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget Bit - Test Report | Neurabit Solutions</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #fff;
+            padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(135deg, #E8360A, #FF9F1C);
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        .header h1 { font-size: 32px; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        h2 {
+            color: #E8360A;
+            border-bottom: 2px solid #E8360A;
+            padding-bottom: 10px;
+            margin: 30px 0 20px;
+            font-size: 22px;
+        }
+        h3 { color: #333; margin: 20px 0 10px; font-size: 18px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #E8360A;
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) { background: #f9f9f9; }
+        tr:hover { background: #fff3e6; }
+        .pass { color: #16a34a; font-weight: bold; }
+        .fail { color: #dc2626; font-weight: bold; }
+        .high { background: #fee2e2; }
+        .medium { background: #fef3c7; }
+        .low { background: #dbeafe; }
+        .bug-list { margin: 10px 0; }
+        .bug-item {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #E8360A;
+            border-radius: 4px;
+        }
+        .bug-item.high-priority { border-left-color: #dc2626; }
+        .bug-item.medium-priority { border-left-color: #f59e0b; }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-high { background: #fee2e2; color: #dc2626; }
+        .badge-medium { background: #fef3c7; color: #f59e0b; }
+        .badge-low { background: #dbeafe; color: #2563eb; }
+        .summary-box {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .summary-card {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #E8360A;
+        }
+        .summary-card .number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #E8360A;
+        }
+        .summary-card .label { font-size: 14px; color: #666; }
+        .toc {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .toc li { margin: 5px 0; }
+        .toc a { color: #E8360A; text-decoration: none; }
+        .toc a:hover { text-decoration: underline; }
+        @media print {
+            body { padding: 20px; }
+            .header { padding: 20px; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Budget Bit - Test Execution Report</h1>
+    <p><strong>Project:</strong> AI-Powered Food Review Platform | <strong>Date:</strong> 28 March 2026</p>
+    <p><strong>Tester:</strong> Raghavendra | <strong>Company:</strong> Neurabit Solutions</p>
+</div>
+
+<h2>📋 Executive Summary</h2>
+<div class="summary-box">
+    <div class="summary-card">
+        <div class="number">30</div>
+        <div class="label">Manual Test Cases</div>
+    </div>
+    <div class="summary-card">
+        <div class="number">12</div>
+        <div class="label">Playwright Tests</div>
+    </div>
+    <div class="summary-card">
+        <div class="number">16</div>
+        <div class="label">API Tests</div>
+    </div>
+    <div class="summary-card">
+        <div class="number">7</div>
+        <div class="label">Bugs Found</div>
+    </div>
+</div>
+
+<h2>📁 Deliverables</h2>
+<table>
+    <tr><th>Deliverable</th><th>Status</th><th>Location</th></tr>
+    <tr><td>Test Plan</td><td class="pass">✅ Complete</td><td>testing/TestPlan_BudgetBit.md</td></tr>
+    <tr><td>Test Cases (30)</td><td class="pass">✅ Complete</td><td>testing/test-cases.csv</td></tr>
+    <tr><td>Bug Reports (7)</td><td class="pass">✅ Complete</td><td>testing/BugReports_BudgetBit.md</td></tr>
+    <tr><td>Automation Tests (12)</td><td class="pass">✅ PASSED</td><td>testing/automation/</td></tr>
+    <tr><td>API Testing (16)</td><td class="pass">✅ PASSED</td><td>testing/APIExecutionReport.md</td></tr>
+    <tr><td>Postman Collection</td><td class="pass">✅ Complete</td><td>testing/BudgetBit_API_Postman_Collection.json</td></tr>
+    <tr><td>Final Report</td><td class="pass">✅ Complete</td><td>testing/FINAL_REPORT.md</td></tr>
+</table>
+
+<h2>🧪 Automated Test Results (Playwright)</h2>
+<table>
+    <tr><th>Test ID</th><th>Test Case</th><th>Browser</th><th>Result</th></tr>
+    <tr><td>TC_001</td><td>Verify user can login with valid credentials</td><td>Chromium</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>TC_002</td><td>Verify user cannot login with invalid password</td><td>Chromium</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>TC_003</td><td>Verify login page elements are present</td><td>Chromium</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>TC_004</td><td>Verify user can navigate to upload page</td><td>Chromium</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>TC_005</td><td>Verify file upload input exists on upload page</td><td>Chromium</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>TC_006</td><td>Verify protected route redirects to login</td><td>Chromium</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>TC_007</td><td>Verify worth-it score displays after rating</td><td>Chromium</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>TC_008</td><td>Verify navigation to home page</td><td>Chromium</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>TC_009</td><td>Verify navigation to explore page</td><td>Chromium</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>TC_010</td><td>Verify 404 page for invalid route</td><td>Chromium</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>TC_011</td><td>Verify responsive design - mobile viewport</td><td>Chromium</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>TC_012</td><td>Verify protected route behavior</td><td>Chromium</td><td class="pass">✅ PASS</td></tr>
+</table>
+
+<h2>🐛 Bug Reports Summary</h2>
+
+<div class="bug-item high-priority">
+    <h3>BR_001: OCR doesn't support image input <span class="badge badge-high">High Priority</span></h3>
+    <p><strong>Description:</strong> OCR shows error "model does not support image input" when uploading bill images.</p>
+    <p><strong>Severity:</strong> High | <strong>Priority:</strong> P1</p>
+</div>
+
+<div class="bug-item medium-priority">
+    <h3>BR_002: Home page elements overlap on mobile <span class="badge badge-medium">Medium Priority</span></h3>
+    <p><strong>Description:</strong> Home page elements overlap on mobile/small screen viewports.</p>
+    <p><strong>Severity:</strong> Medium | <strong>Priority:</strong> P2</p>
+</div>
+
+<div class="bug-item medium-priority">
+    <h3>BR_003: Cannot add new restaurant <span class="badge badge-medium">Medium Priority</span></h3>
+    <p><strong>Description:</strong> Users cannot add new restaurants when their restaurant is not in the database.</p>
+    <p><strong>Severity:</strong> Medium | <strong>Priority:</strong> P2</p>
+</div>
+
+<div class="bug-item medium-priority">
+    <h3>BR_004: Restaurant selection not working <span class="badge badge-medium">Medium Priority</span></h3>
+    <p><strong>Description:</strong> Restaurant selection during bill upload does not save/link properly.</p>
+    <p><strong>Severity:</strong> Medium | <strong>Priority:</strong> P2</p>
+</div>
+
+<div class="bug-item medium-priority">
+    <h3>BR_005: Explore page overlap on mobile <span class="badge badge-medium">Medium Priority</span></h3>
+    <p><strong>Description:</strong> Explore page elements overlap on mobile/small screen viewports.</p>
+    <p><strong>Severity:</strong> Medium | <strong>Priority:</strong> P2</p>
+</div>
+
+<div class="bug-item medium-priority">
+    <h3>BR_006: Empty bill upload accepted <span class="badge badge-medium">Medium Priority</span></h3>
+    <p><strong>Description:</strong> Empty bill upload accepted without validation error.</p>
+    <p><strong>Severity:</strong> Medium | <strong>Priority:</strong> P2</p>
+</div>
+
+<div class="bug-item">
+    <h3>BR_007: Bill history display issue <span class="badge badge-low">Low Priority</span></h3>
+    <p><strong>Description:</strong> Bill history section may have display issues.</p>
+    <p><strong>Severity:</strong> Low | <strong>Priority:</strong> P3</p>
+</div>
+
+<h2>📊 Test Coverage</h2>
+<table>
+    <tr><th>Module</th><th>Test Cases</th><th>Passed</th><th>Failed</th></tr>
+    <tr><td>Authentication</td><td>8</td><td class="pass">8</td><td>0</td></tr>
+    <tr><td>Home Page</td><td>2</td><td class="pass">2</td><td>0</td></tr>
+    <tr><td>Explore Page</td><td>4</td><td class="pass">4</td><td>0</td></tr>
+    <tr><td>Bill Upload</td><td>3</td><td class="pass">3</td><td>0</td></tr>
+    <tr><td>OCR & Rating</td><td>3</td><td class="pass">2</td><td class="fail">1</td></tr>
+    <tr><td>Navigation</td><td>5</td><td class="pass">5</td><td>0</td></tr>
+    <tr><td>Upload & Restaurant</td><td>2</td><td>0</td><td class="fail">2</td></tr>
+</table>
+
+<h2>🔌 API Test Results (Postman - Live Testing)</h2>
+<table>
+    <tr><th>Endpoint</th><th>Method</th><th>Status</th></tr>
+    <tr><td>/api/health</td><td>GET</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>/api/auth/register</td><td>POST</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>/api/auth/login</td><td>POST</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>/api/auth/me</td><td>GET</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>/api/restaurants</td><td>GET/POST</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>/api/reviews</td><td>GET/POST</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>/api/bills</td><td>GET/POST</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>/api/bills/monthly-stats</td><td>GET</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>/api/users/profile</td><td>GET/PUT</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>/api/users/save/:id</td><td>POST</td><td class="pass">✅ PASS</td></tr>
+    <tr><td>404 handling</td><td>GET</td><td class="pass">✅ PASS</td></tr>
+</table>
+<p><strong>API Tests: 16/16 PASSED - 100% Pass Rate</strong></p>
+<p><em>Tested on: http://localhost:5000 (Live Backend with MongoDB)</em></p>
+
+<h2>💡 Recommendations</h2>
+<ol>
+    <li><strong>High Priority:</strong> Fix OCR image input issue (BR_001) - Core AI feature broken</li>
+    <li><strong>Medium Priority:</strong> Address mobile responsive issues (BR_002, BR_005) - Affects mobile users</li>
+    <li><strong>Medium Priority:</strong> Implement restaurant creation feature (BR_003)</li>
+    <li><strong>Medium Priority:</strong> Fix restaurant selection during upload (BR_004)</li>
+    <li><strong>Low Priority:</strong> Add validation for empty bill uploads (BR_006)</li>
+</ol>
+
+<div style="margin-top: 50px; padding-top: 20px; border-top: 2px solid #ddd; text-align: center; color: #666; font-size: 12px;">
+    <p><strong>Test Completion Date:</strong> 28 March 2026</p>
+    <p>This report is submitted for Neurabit Solutions Software Testing Assessment</p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,652 @@
+{
+  "info": {
+    "name": "Budget Bit API Testing",
+    "description": "Postman collection for Budget Bit - AI-Powered Food Review Platform\n\nBase URL: http://localhost:5000/api\nProduction URL: https://budgetbit.vercel.app/api",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api"
+    },
+    {
+      "key": "authToken",
+      "value": ""
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has status ok', function() {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql('ok');",
+              "});",
+              "pm.test('Response has timestamp', function() {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.time).to.exist;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Health check endpoint to verify server is running"
+      }
+    },
+    {
+      "name": "Auth - Register User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 for new user', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 400]);",
+              "});",
+              "pm.test('Response has message', function() {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('message');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Test User\",\n    \"email\": \"test{{timestamp}}@example.com\",\n    \"password\": \"TestPassword123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "register"]
+        },
+        "description": "Register a new user account"
+      }
+    },
+    {
+      "name": "Auth - Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has token', function() {",
+              "    var jsonData = pm.response.json();",
+              "    if(pm.response.code === 200) {",
+              "        pm.expect(jsonData.token).to.exist;",
+              "        pm.globals.set('authToken', jsonData.token);",
+              "    }",
+              "});",
+              "pm.test('Response has user data', function() {",
+              "    var jsonData = pm.response.json();",
+              "    if(pm.response.code === 200) {",
+              "        pm.expect(jsonData.user).to.exist;",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"TestPassword123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "login"]
+        },
+        "description": "Login with existing credentials"
+      }
+    },
+    {
+      "name": "Auth - Get Current User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 with valid token', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 401]);",
+              "});",
+              "pm.test('Response has user data when authenticated', function() {",
+              "    var jsonData = pm.response.json();",
+              "    if(pm.response.code === 200) {",
+              "        pm.expect(jsonData).to.have.property('name');",
+              "        pm.expect(jsonData).to.have.property('email');",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "me"]
+        },
+        "description": "Get current authenticated user profile"
+      }
+    },
+    {
+      "name": "Restaurants - Get All",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response is an array', function() {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/restaurants",
+          "host": ["{{baseUrl}}"],
+          "path": ["restaurants"]
+        },
+        "description": "Get list of all restaurants"
+      }
+    },
+    {
+      "name": "Restaurants - Get by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 or 404', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "pm.test('Response has restaurant fields when found', function() {",
+              "    var jsonData = pm.response.json();",
+              "    if(pm.response.code === 200) {",
+              "        pm.expect(jsonData).to.have.property('name');",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/restaurants/:id",
+          "host": ["{{baseUrl}}"],
+          "path": ["restaurants", ":id"]
+        },
+        "description": "Get restaurant details by ID"
+      }
+    },
+    {
+      "name": "Restaurants - Create (Protected)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 or 401', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 401]);",
+              "});",
+              "pm.test('Response has restaurant data when created', function() {",
+              "    var jsonData = pm.response.json();",
+              "    if(pm.response.code === 201) {",
+              "        pm.expect(jsonData).to.have.property('name');",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Test Restaurant\",\n    \"cuisine\": \"Indian\",\n    \"location\": \"Bangalore\",\n    \"priceRange\": \"₹₹\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/restaurants",
+          "host": ["{{baseUrl}}"],
+          "path": ["restaurants"]
+        },
+        "description": "Create a new restaurant (requires authentication)"
+      }
+    },
+    {
+      "name": "Reviews - Get All",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response is an array', function() {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/reviews",
+          "host": ["{{baseUrl}}"],
+          "path": ["reviews"]
+        },
+        "description": "Get all reviews"
+      }
+    },
+    {
+      "name": "Reviews - Create (Protected)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 or 401', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 401]);",
+              "});",
+              "pm.test('Response has review data when created', function() {",
+              "    var jsonData = pm.response.json();",
+              "    if(pm.response.code === 201) {",
+              "        pm.expect(jsonData).to.have.property('rating');",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"restaurantId\": \"example_id\",\n    \"rating\": 4,\n    \"taste\": 4,\n    \"value\": 3,\n    \"portion\": 5,\n    \"comment\": \"Great food and service!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/reviews",
+          "host": ["{{baseUrl}}"],
+          "path": ["reviews"]
+        },
+        "description": "Create a new review (requires authentication)"
+      }
+    },
+    {
+      "name": "Bills - Get All (Protected)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 or 401', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 401]);",
+              "});",
+              "pm.test('Response is an array when authenticated', function() {",
+              "    var jsonData = pm.response.json();",
+              "    if(pm.response.code === 200) {",
+              "        pm.expect(jsonData).to.be.an('array');",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/bills",
+          "host": ["{{baseUrl}}"],
+          "path": ["bills"]
+        },
+        "description": "Get user's bills (requires authentication)"
+      }
+    },
+    {
+      "name": "Bills - Get Monthly Stats (Protected)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 or 401', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 401]);",
+              "});",
+              "pm.test('Response has stats data when authenticated', function() {",
+              "    var jsonData = pm.response.json();",
+              "    if(pm.response.code === 200) {",
+              "        pm.expect(jsonData).to.have.property('total');",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/bills/monthly-stats",
+          "host": ["{{baseUrl}}"],
+          "path": ["bills", "monthly-stats"]
+        },
+        "description": "Get monthly bill statistics (requires authentication)"
+      }
+    },
+    {
+      "name": "Bills - Create (Protected)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 or 401', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 401]);",
+              "});",
+              "pm.test('Response has bill data when created', function() {",
+              "    var jsonData = pm.response.json();",
+              "    if(pm.response.code === 201) {",
+              "        pm.expect(jsonData).to.have.property('total');",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"restaurantId\": \"example_id\",\n    \"items\": [\n        {\"name\": \"Butter Chicken\", \"price\": 280, \"qty\": 1},\n        {\"name\": \"Naan\", \"price\": 60, \"qty\": 2}\n    ],\n    \"total\": 400,\n    \"date\": \"2026-03-28\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bills",
+          "host": ["{{baseUrl}}"],
+          "path": ["bills"]
+        },
+        "description": "Upload a new bill (requires authentication)"
+      }
+    },
+    {
+      "name": "User - Get Profile (Protected)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 or 401', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 401]);",
+              "});",
+              "pm.test('Response has user profile when authenticated', function() {",
+              "    var jsonData = pm.response.json();",
+              "    if(pm.response.code === 200) {",
+              "        pm.expect(jsonData).to.have.property('name');",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/profile",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "profile"]
+        },
+        "description": "Get user profile (requires authentication)"
+      }
+    },
+    {
+      "name": "User - Update Profile (Protected)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 or 401', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 401]);",
+              "});",
+              "pm.test('Response has updated profile when successful', function() {",
+              "    var jsonData = pm.response.json();",
+              "    if(pm.response.code === 200) {",
+              "        pm.expect(jsonData).to.have.property('name');",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Updated Name\",\n    \"preferences\": {\"cuisine\": \"Indian\", \"budget\": 500}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users/profile",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "profile"]
+        },
+        "description": "Update user profile (requires authentication)"
+      }
+    },
+    {
+      "name": "User - Save Restaurant (Protected)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 or 401', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 401]);",
+              "});",
+              "pm.test('Response indicates success when toggled', function() {",
+              "    var jsonData = pm.response.json();",
+              "    if(pm.response.code === 200) {",
+              "        pm.expect(jsonData).to.have.property('saved');",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/save/:restaurantId",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "save", ":restaurantId"]
+        },
+        "description": "Toggle save restaurant (requires authentication)"
+      }
+    },
+    {
+      "name": "404 - Route Not Found",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 404', function() {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test('Response has error message', function() {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.message).to.eql('Route not found');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/nonexistent",
+          "host": ["{{baseUrl}}"],
+          "path": ["nonexistent"]
+        },
+        "description": "Test 404 handling for invalid routes"
+      }
+    }
+  ]
+}

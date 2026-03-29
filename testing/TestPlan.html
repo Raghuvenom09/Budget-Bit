@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Plan - Budget Bit | Neurabit Solutions</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #fff;
+            padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(135deg, #3b82f6, #60a5fa);
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        .header h1 { font-size: 32px; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        h2 {
+            color: #3b82f6;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 10px;
+            margin: 30px 0 20px;
+            font-size: 22px;
+        }
+        h3 { color: #1e40af; margin: 20px 0 10px; font-size: 16px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th { background: #3b82f6; color: white; font-weight: 600; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .checkbox { color: #16a34a; font-weight: bold; }
+        .section-box {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #3b82f6;
+        }
+        ul { margin-left: 25px; }
+        li { margin: 5px 0; }
+        @media print {
+            body { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📋 Test Plan - Budget Bit</h1>
+    <p><strong>Project:</strong> AI-Powered Food Review Platform | <strong>Version:</strong> 1.0.0</p>
+    <p><strong>Date:</strong> 28 March 2026 | <strong>Tester:</strong> Raghavendra | <strong>Company:</strong> Neurabit Solutions</p>
+</div>
+
+<h2>1. Introduction</h2>
+
+<div class="section-box">
+    <h3>1.1 Project Overview</h3>
+    <p><strong>Project Name:</strong> Budget Bit</p>
+    <p><strong>Project Type:</strong> Web Application (Food Review Platform)</p>
+    <p><strong>Test Type:</strong> End-to-End Functional Testing</p>
+    <p><strong>Application URL:</strong> https://budgetbit.vercel.app</p>
+</div>
+
+<div class="section-box">
+    <h3>1.2 Project Description</h3>
+    <p>Budget Bit is an AI-powered food review platform where users:</p>
+    <ul>
+        <li>Upload restaurant bills</li>
+        <li>Auto-extract dishes using OCR</li>
+        <li>Rate meals</li>
+        <li>Get value-focused recommendations (Worth-It Score)</li>
+    </ul>
+</div>
+
+<h2>2. Scope of Testing</h2>
+
+<div class="section-box">
+    <h3>In Scope (Features to Test)</h3>
+    <ul>
+        <li>✅ User Registration</li>
+        <li>✅ User Login</li>
+        <li>✅ Home Page</li>
+        <li>✅ Explore Page (Restaurant Discovery)</li>
+        <li>✅ Restaurant Details Page</li>
+        <li>✅ Bill Upload & OCR Scanning</li>
+        <li>✅ Dish Rating & Worth-It Score</li>
+        <li>✅ AI Recommendations</li>
+        <li>✅ User Profile Management</li>
+        <li>✅ Navigation & Routing</li>
+    </ul>
+</div>
+
+<div class="section-box">
+    <h3>Out of Scope</h3>
+    <ul>
+        <li>❌ Backend API performance testing (not deployed)</li>
+        <li>❌ Security penetration testing</li>
+        <li>❌ Load testing</li>
+        <li>❌ Database performance</li>
+    </ul>
+</div>
+
+<h2>3. Test Objectives</h2>
+<ol>
+    <li><strong>Functional Correctness:</strong> Verify all features work as expected</li>
+    <li><strong>User Experience:</strong> Ensure smooth, intuitive user flow</li>
+    <li><strong>Error Handling:</strong> Validate proper error messages for invalid inputs</li>
+    <li><strong>Cross-Browser:</strong> Test on major browsers (Chrome, Firefox, Edge)</li>
+    <li><strong>Responsive Design:</strong> Verify mobile compatibility</li>
+    <li><strong>Edge Cases:</strong> Test boundary conditions and unusual inputs</li>
+</ol>
+
+<h2>4. Testing Approach</h2>
+
+<div class="section-box">
+    <h3>Testing Type</h3>
+    <ul>
+        <li><strong>Manual Functional Testing</strong> - Primary approach</li>
+        <li><strong>Smoke Testing</strong> - For critical flows</li>
+        <li><strong>Regression Testing</strong> - After bug fixes</li>
+        <li><strong>Automated Testing</strong> - Playwright for critical paths</li>
+        <li><strong>API Testing</strong> - Using Postman (when backend available)</li>
+    </ul>
+</div>
+
+<div class="section-box">
+    <h3>Test Environment</h3>
+    <table>
+        <tr><th>Component</th><th>Environment</th></tr>
+        <tr><td>Frontend URL</td><td>https://budgetbit.vercel.app</td></tr>
+        <tr><td>Backend</td><td>Not deployed (using demo/mock mode)</td></tr>
+        <tr><td>Database</td><td>Supabase Cloud</td></tr>
+        <tr><td>Browser</td><td>Chrome (Primary), Firefox, Edge</td></tr>
+    </table>
+</div>
+
+<h2>5. Test Deliverables</h2>
+<table>
+    <tr><th>Deliverable</th><th>Status</th><th>Location</th></tr>
+    <tr><td>Test Plan</td><td class="checkbox">✅ Complete</td><td>This document</td></tr>
+    <tr><td>Test Cases (30)</td><td class="checkbox">✅ Complete</td><td>test-cases.csv</td></tr>
+    <tr><td>Bug Reports (7)</td><td class="checkbox">✅ Complete</td><td>BugReports_BudgetBit.md</td></tr>
+    <tr><td>Automation Scripts</td><td class="checkbox">✅ Complete</td><td>automation/</td></tr>
+    <tr><td>API Test Results</td><td class="checkbox">✅ Complete</td><td>APITestingGuide.md</td></tr>
+</table>
+
+<h2>6. Test Features & Modules</h2>
+
+<table>
+    <tr><th>Module</th><th>Features</th><th>Test Cases</th></tr>
+    <tr><td><strong>Authentication</strong></td><td>Registration, Login, Logout, Session</td><td>8</td></tr>
+    <tr><td><strong>Home Page</strong></td><td>Hero Section, Featured Restaurants, Navigation</td><td>2</td></tr>
+    <tr><td><strong>Explore Page</strong></td><td>Restaurant Listing, Filters, Search</td><td>4</td></tr>
+    <tr><td><strong>Restaurant Details</strong></td><td>Info Display, Reviews, Map Link</td><td>2</td></tr>
+    <tr><td><strong>Bill Upload</strong></td><td>File Upload, OCR Scanning, Item Extraction</td><td>3</td></tr>
+    <tr><td><strong>Rating & Score</strong></td><td>Dish Rating, Worth-It Score Calculation</td><td>3</td></tr>
+    <tr><td><strong>Recommendations</strong></td><td>Personalized Recommendations, Budget Filter</td><td>3</td></tr>
+    <tr><td><strong>User Profile</strong></td><td>Profile Viewing, Edit, Bill History</td><td>3</td></tr>
+    <tr><td><strong>Navigation</strong></td><td>Protected Routes, 404 Page, Responsive</td><td>3</td></tr>
+</table>
+
+<h2>7. Risk Analysis</h2>
+<table>
+    <tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr>
+    <tr><td>Backend not deployed</td><td>AI features use demo mode</td><td>Document expected behavior</td></tr>
+    <tr><td>Demo mode responses</td><td>Limited test coverage for AI</td><td>Test UI/UX of AI features</td></tr>
+    <tr><td>Supabase rate limits</td><td>May affect testing</td><td>Use controlled test data</td></tr>
+</table>
+
+<h2>8. Entry & Exit Criteria</h2>
+
+<div class="section-box">
+    <h3>Entry Criteria</h3>
+    <ul>
+        <li class="checkbox">✅ Application is accessible</li>
+        <li class="checkbox">✅ Test environment is ready</li>
+        <li class="checkbox">✅ Test plan is approved</li>
+    </ul>
+</div>
+
+<div class="section-box">
+    <h3>Exit Criteria</h3>
+    <ul>
+        <li class="checkbox">✅ All critical test cases executed</li>
+        <li class="checkbox">✅ High-priority bugs reported</li>
+        <li class="checkbox">✅ 12 automation scripts created</li>
+        <li class="checkbox">✅ API testing completed</li>
+    </ul>
+</div>
+
+<h2>9. Test Schedule</h2>
+<table>
+    <tr><th>Phase</th><th>Activity</th><th>Duration</th></tr>
+    <tr><td>Phase 1</td><td>Test Plan & Preparation</td><td>1 hour</td></tr>
+    <tr><td>Phase 2</td><td>Test Case Execution</td><td>2 hours</td></tr>
+    <tr><td>Phase 3</td><td>Bug Reporting</td><td>1 hour</td></tr>
+    <tr><td>Phase 4</td><td>Automation (Playwright)</td><td>2 hours</td></tr>
+    <tr><td>Phase 5</td><td>API Testing (Postman)</td><td>1 hour</td></tr>
+    <tr><td>Phase 6</td><td>Final Report</td><td>1 hour</td></tr>
+</table>
+
+<div style="margin-top: 50px; padding-top: 20px; border-top: 2px solid #ddd; text-align: center; color: #666; font-size: 12px;">
+    <p><strong>Document Version:</strong> 1.0 | <strong>Prepared By:</strong> Raghavendra</p>
+    <p>For Neurabit Solutions Software Testing Assessment</p>
+</div>
+
+</body>
+</html>
