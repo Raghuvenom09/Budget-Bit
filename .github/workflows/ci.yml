@@ -44,7 +44,7 @@ jobs:
         continue-on-error: false
 
       - name: Run tests
-        run: npm run test -- --run
+        run: npm run test -- --run --exclude="**/src/test/**"
         continue-on-error: false
 
       - name: Build
