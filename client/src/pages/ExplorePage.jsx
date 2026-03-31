@@ -189,14 +189,14 @@ export default function ExplorePage() {
     <div className="pb-16 w-full">
       {/* Header */}
       <div
-        className="rounded-3xl mt-6 px-10 py-12 relative overflow-hidden border-2 mb-8"
+        className="rounded-3xl mt-6 px-6 sm:px-10 py-8 sm:py-12 relative overflow-hidden border-2 mb-6 sm:mb-8"
         style={{ background: "linear-gradient(135deg,#E8360A,#FF9F1C)", borderColor: "transparent" }}
       >
-        <div className="absolute right-8 top-1/2 -translate-y-1/2 text-[120px] opacity-10 select-none float-emoji">🗺️</div>
+        <div className="absolute right-2 sm:right-8 top-1/2 -translate-y-1/2 text-[60px] sm:text-[120px] opacity-10 select-none float-emoji">🗺️</div>
         <div className="inline-flex items-center gap-2 bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-full mb-3 uppercase tracking-wider">
           <Compass size={12} /> Discover
         </div>
-        <h1 className="font-display text-4xl font-black text-white mb-2">Explore Restaurants</h1>
+        <h1 className="font-display text-3xl sm:text-4xl font-black text-white mb-2">Explore Restaurants</h1>
         <p className="text-white/75 text-sm font-medium">Filter by budget, distance &amp; cuisine type.</p>
       </div>
 

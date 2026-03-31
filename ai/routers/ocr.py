@@ -19,7 +19,7 @@ router = APIRouter()
 API_KEY = os.getenv("GEMINI_API_KEY", "")
 if API_KEY and API_KEY != "your_gemini_api_key_here":
     genai.configure(api_key=API_KEY)
-    _model = genai.GenerativeModel("gemini-2.5-flash")
+    _model = genai.GenerativeModel("gemini-1.5-flash")
 else:
     _model = None
 

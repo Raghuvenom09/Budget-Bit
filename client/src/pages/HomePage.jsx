@@ -87,21 +87,21 @@ export default function HomePage() {
     <div className="pb-16 w-full">
 
       {/* ── Hero ─────────────────────────────────────────────── */}
-      <div className="hero-food rounded-3xl mt-6 px-10 py-14 relative overflow-hidden border-2" style={{ borderColor: "rgba(232,54,10,0.10)" }}>
-        <div className="absolute right-16 top-8 text-6xl float-emoji select-none" style={{ animationDelay: "0s" }}>🍛</div>
-        <div className="absolute right-36 bottom-6 text-4xl float-emoji select-none" style={{ animationDelay: "1.2s" }}>🌶️</div>
-        <div className="absolute right-6 bottom-12 text-5xl float-emoji select-none" style={{ animationDelay: "0.6s" }}>🍽️</div>
+      <div className="hero-food rounded-3xl mt-6 px-6 sm:px-10 py-10 sm:py-14 relative overflow-hidden border-2" style={{ borderColor: "rgba(232,54,10,0.10)" }}>
+        <div className="absolute right-4 sm:right-16 top-4 sm:top-8 text-4xl sm:text-6xl float-emoji select-none" style={{ animationDelay: "0s" }}>🍛</div>
+        <div className="absolute right-12 sm:right-36 bottom-4 sm:bottom-6 text-3xl sm:text-4xl float-emoji select-none" style={{ animationDelay: "1.2s" }}>🌶️</div>
+        <div className="absolute right-2 sm:right-6 bottom-6 sm:bottom-12 text-4xl sm:text-5xl float-emoji select-none" style={{ animationDelay: "0.6s" }}>🍽️</div>
 
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 bg-[#E8360A]/10 border border-[#E8360A]/20 text-[#E8360A] text-xs font-bold px-4 py-1.5 rounded-full mb-5 uppercase tracking-widest">
             <Flame size={13} className="fill-[#E8360A]" /> {greeting}{profile ? `, ${profile.name.split(" ")[0]}` : ""} 👋
           </div>
 
-          <h1 className="font-display text-6xl font-black text-[#1A0A00] leading-[1.05] mb-4">
+          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-black text-[#1A0A00] leading-[1.05] mb-4">
             Every Rupee<br />
             <span className="stripe-underline" style={{ color: "#E8360A" }}>Deserves</span>&nbsp;Its Worth
           </h1>
-          <p className="text-[#4A2E1A] text-base mb-8 max-w-md leading-relaxed font-medium">
+          <p className="text-[#4A2E1A] text-sm sm:text-base mb-6 sm:mb-8 max-w-md leading-relaxed font-medium">
             Scan bills. Rate dishes. Find restaurants that give you the most bang for your buck — verified by India's food community.
           </p>
 
@@ -112,7 +112,7 @@ export default function HomePage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search dishes or restaurants..."
-              className="w-full pl-11 pr-5 py-4 rounded-2xl text-sm font-medium text-[#1A0A00] placeholder-[#8C6A52]/60 outline-none border-2 transition-all focus:border-[#E8360A]/50"
+              className="w-full pl-11 pr-5 py-3 sm:py-4 rounded-2xl text-sm font-medium text-[#1A0A00] placeholder-[#8C6A52]/60 outline-none border-2 transition-all focus:border-[#E8360A]/50"
               style={{ background: "#ffffff", borderColor: "rgba(232,54,10,0.15)", boxShadow: "0 4px 16px rgba(232,54,10,0.07)" }}
             />
           </div>
@@ -121,7 +121,7 @@ export default function HomePage() {
 
       {/* ── Stats Cards (user's real data) ───────────────────── */}
       {user && (
-        <div className="grid grid-cols-3 gap-4 mt-8 stagger">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8 stagger">
           {[
             { label: "Bills Scanned", value: bills.length ? String(bills.length) : "0", icon: <Receipt size={22} />, color: "#E8360A", bg: "#FDE8D0" },
             { label: "Avg Rating", value: avgRating ? `${avgRating}★` : "—", icon: <Star size={22} className="fill-current" />, color: "#FF9F1C", bg: "#FDE8D0" },
@@ -265,20 +265,20 @@ export default function HomePage() {
       <SnapScanScore />
 
       {/* ── Smart Savings Feature Section ────────────────────── */}
-      <div className="mt-24">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div className="mt-16 sm:mt-24">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <div>
             <div className="inline-flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-full mb-5 uppercase tracking-widest border-2" style={{ background: "#FDE8D0", color: "#E8360A", borderColor: "rgba(232,54,10,0.2)" }}>
               <Receipt size={12} /> Smart Savings
             </div>
-            <h2 className="font-display text-5xl font-black text-[#1A0A00] leading-[1.05] mb-4">
+            <h2 className="font-display text-4xl sm:text-5xl font-black text-[#1A0A00] leading-[1.05] mb-4">
               Your Wallet's<br />
-              <span className="font-script text-5xl" style={{ color: "#E8360A" }}>Best Friend</span>
+              <span className="font-script text-4xl sm:text-5xl" style={{ color: "#E8360A" }}>Best Friend</span>
             </h2>
-            <p className="text-[#4A2E1A] text-base font-medium mb-8 max-w-md leading-relaxed">
+            <p className="text-[#4A2E1A] text-sm sm:text-base font-medium mb-6 sm:mb-8 max-w-md leading-relaxed">
               Track your dining expenses, visualise your spending habits, and discover restaurants that give you the most bang for your buck.
             </p>
-            <div className="grid grid-cols-2 gap-3 mb-8">
+            <div className="grid grid-cols-2 gap-3 mb-6 sm:mb-8">
               {[
                 { icon: <Receipt size={18} />, title: "Bill Tracking", sub: "Auto-extract details from photos" },
                 { icon: <TrendingUp size={18} />, title: "Spending Insights", sub: "Visualize monthly trends" },
@@ -294,7 +294,7 @@ export default function HomePage() {
             </div>
             <button
               onClick={() => navigate("/upload")}
-              className="px-8 py-4 rounded-2xl font-bold text-white text-sm shadow-xl transition-all hover:opacity-90 active:scale-[0.98] flex items-center gap-2"
+              className="px-6 sm:px-8 py-3 sm:py-4 rounded-2xl font-bold text-white text-sm shadow-xl transition-all hover:opacity-90 active:scale-[0.98] flex items-center gap-2"
               style={{ background: "linear-gradient(135deg,#E8360A,#FF9F1C)" }}
             >
               Start Tracking Now →
@@ -348,18 +348,18 @@ export default function HomePage() {
 
       {/* ── CTA Banner ───────────────────────────────────────── */}
       <div
-        className="mt-20 rounded-3xl px-10 py-12 flex items-center justify-between overflow-hidden relative"
+        className="mt-16 sm:mt-20 rounded-3xl px-6 sm:px-10 py-8 sm:py-12 flex flex-col sm:flex-row items-center sm:items-center justify-between gap-6 overflow-hidden relative"
         style={{ background: "linear-gradient(135deg, #E8360A 0%, #FF9F1C 60%, #F7C948 100%)" }}
       >
-        <div className="absolute right-0 top-0 text-[160px] opacity-10 select-none leading-none -translate-y-4">🍱</div>
-        <div className="relative z-10">
-          <p className="text-white/80 text-sm font-bold uppercase tracking-widest mb-2">Got your bill?</p>
-          <h3 className="font-display text-4xl font-black text-white mb-2">Scan it. Rate it. Save more.</h3>
+        <div className="absolute right-0 top-0 text-[100px] sm:text-[160px] opacity-10 select-none leading-none -translate-y-4">🍱</div>
+        <div className="relative z-10 text-center sm:text-left">
+          <p className="text-white/80 text-xs sm:text-sm font-bold uppercase tracking-widest mb-2">Got your bill?</p>
+          <h3 className="font-display text-3xl sm:text-4xl font-black text-white mb-2">Scan it. Rate it. Save more.</h3>
           <p className="text-white/70 text-sm">Upload your restaurant bill and find out if it was Worth-It™</p>
         </div>
         <button
           onClick={() => navigate(user ? "/upload" : "/login")}
-          className="relative z-10 bg-white text-[#E8360A] font-display font-black text-sm px-8 py-4 rounded-2xl flex-shrink-0 shadow-xl hover:scale-105 transition-transform"
+          className="relative z-10 bg-white text-[#E8360A] font-display font-black text-sm px-6 sm:px-8 py-3 sm:py-4 rounded-2xl flex-shrink-0 shadow-xl hover:scale-105 transition-transform"
         >
           {user ? "Upload Bill →" : "Get Started →"}
         </button>

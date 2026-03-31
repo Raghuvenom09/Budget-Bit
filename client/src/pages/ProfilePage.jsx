@@ -147,10 +147,12 @@ export default function ProfilePage() {
                     )}
                   </div>
                 </div>
-                {Array.isArray(bill.dishes) && bill.dishes.length > 0 && (
+                {bill.items && bill.items.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-3">
-                    {bill.dishes.map((d, i) => (
-                      <span key={i} className="text-[#B52800] font-semibold text-[10px] px-2.5 py-1 rounded-full" style={{ background: "#FDE8D0" }}>{d}</span>
+                    {bill.items.map((item, i) => (
+                      <span key={i} className="text-[#B52800] font-semibold text-[10px] px-2.5 py-1 rounded-full" style={{ background: "#FDE8D0" }}>
+                        {item.name} {item.qty > 1 ? `×${item.qty}` : ""}
+                      </span>
                     ))}
                   </div>
                 )}

@@ -26,6 +26,7 @@ export default function UploadPage() {
   const [fileError, setFileError] = useState(null);
   const [dishes, setDishes] = useState([]);
   const [scanProgress, setScanProgress] = useState(0);
+  const [emptyBillError, setEmptyBillError] = useState(null);
 
   // ── OCR metadata ────────────────────────────────────────────────────────────
   const [ocrRestaurant, setOcrRestaurant] = useState(null);
@@ -38,6 +39,10 @@ export default function UploadPage() {
   const [restaurantResults, setRestaurantResults] = useState([]);
   const [restaurantSearch, setRestaurantSearch] = useState("");
   const [showRestaurantPicker, setShowRestaurantPicker] = useState(false);
+  const [showAddRestaurant, setShowAddRestaurant] = useState(false);
+  const [newRestaurantName, setNewRestaurantName] = useState("");
+  const [newRestaurantCuisine, setNewRestaurantCuisine] = useState("Indian");
+  const [creatingRestaurant, setCreatingRestaurant] = useState(false);
 
   // Fuzzy-match OCR restaurant name against DB
   const matchRestaurant = async (name) => {
@@ -56,6 +61,29 @@ export default function UploadPage() {
       setShowRestaurantPicker(true);
     } catch (e) {
       console.error("Restaurant match failed:", e);
+    }
+  };
+
+  // Create a new restaurant
+  const handleCreateRestaurant = async () => {
+    if (!newRestaurantName.trim()) return;
+    setCreatingRestaurant(true);
+    try {
+      const newRestaurant = await api.restaurants.create({
+        name: newRestaurantName.trim(),
+        cuisine: newRestaurantCuisine,
+        address: "",
+        city: "Bangalore",
+        avg_cost: 500,
+      });
+      setMatchedRestaurant(newRestaurant);
+      setShowAddRestaurant(false);
+      setShowRestaurantPicker(false);
+      setNewRestaurantName("");
+    } catch (e) {
+      console.error("Failed to create restaurant:", e);
+    } finally {
+      setCreatingRestaurant(false);
     }
   };
 
@@ -165,16 +193,24 @@ export default function UploadPage() {
 
   const handleRate = async () => {
     const restaurantId = matchedRestaurant?.id || null;
+    const validDishes = dishes.filter((d) => d.name.trim());
+
+    if (validDishes.length === 0) {
+      setEmptyBillError("Please add at least one dish before rating.");
+      return;
+    }
+
+    setEmptyBillError(null);
 
     if (user) {
       setSavingBill(true);
       try {
         await api.bills.create({
           user_id: user.id,
+          restaurant_id: restaurantId,
           amount: billTotal,
           image_url: billImageUrl,
-          dishes: dishes.map((d) => d.name),
-          restaurant_id: restaurantId,
+          items: validDishes.map((d) => ({ name: d.name, price: d.price, qty: d.qty || 1 })),
         });
       } catch (e) {
         console.error("Bill save failed:", e);
@@ -407,7 +443,7 @@ export default function UploadPage() {
             </div>
 
             {/* ── Restaurant Picker Modal ──────────────────────────────── */}
-            {showRestaurantPicker && (
+            {showRestaurantPicker && !showAddRestaurant && (
               <div className="card-warm p-5 mb-6 border-2" style={{ borderColor: "rgba(232,54,10,0.15)" }}>
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-bold text-[#1A0A00] text-sm flex items-center gap-2">
@@ -447,9 +483,70 @@ export default function UploadPage() {
                   ))}
                 </div>
                 <button
+                  onClick={() => setShowAddRestaurant(true)}
+                  className="w-full mt-3 py-2.5 rounded-xl text-[#E8360A] text-xs font-bold hover:bg-[#FDE8D0] transition-colors border-2 border-dashed"
+                  style={{ borderColor: "rgba(232,54,10,0.3)" }}
+                >
+                  + Add New Restaurant
+                </button>
+                <button
                   onClick={() => setShowRestaurantPicker(false)}
-                  className="w-full mt-3 py-2 rounded-xl text-[#8C6A52] text-xs font-bold hover:bg-[#FDE8D0] transition-colors"
+                  className="w-full mt-2 py-2 rounded-xl text-[#8C6A52] text-xs font-bold hover:bg-[#FDE8D0] transition-colors"
                 >Skip — Continue without restaurant</button>
+              </div>
+            )}
+
+            {/* ── Add New Restaurant Form ──────────────────────────────── */}
+            {showAddRestaurant && (
+              <div className="card-warm p-5 mb-6 border-2" style={{ borderColor: "rgba(232,54,10,0.15)" }}>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-bold text-[#1A0A00] text-sm flex items-center gap-2">
+                    + Add New Restaurant
+                  </h4>
+                  <button
+                    onClick={() => { setShowAddRestaurant(false); setNewRestaurantName(""); }}
+                    className="text-[#8C6A52] text-xs font-bold hover:text-[#E8360A]"
+                  >✕ Cancel</button>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[#8C6A52] text-xs font-bold uppercase tracking-wider mb-1 block">Restaurant Name</label>
+                    <input
+                      type="text"
+                      value={newRestaurantName}
+                      onChange={(e) => setNewRestaurantName(e.target.value)}
+                      placeholder="Enter restaurant name"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#FFF8F0] border-2 text-sm font-semibold text-[#1A0A00] focus:outline-none focus:border-[#E8360A]/40 transition-colors"
+                      style={{ borderColor: "rgba(232,54,10,0.1)" }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[#8C6A52] text-xs font-bold uppercase tracking-wider mb-1 block">Cuisine Type</label>
+                    <select
+                      value={newRestaurantCuisine}
+                      onChange={(e) => setNewRestaurantCuisine(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#FFF8F0] border-2 text-sm font-semibold text-[#1A0A00] focus:outline-none focus:border-[#E8360A]/40 transition-colors"
+                      style={{ borderColor: "rgba(232,54,10,0.1)" }}
+                    >
+                      <option value="Indian">Indian</option>
+                      <option value="Chinese">Chinese</option>
+                      <option value="Italian">Italian</option>
+                      <option value="Mexican">Mexican</option>
+                      <option value="American">American</option>
+                      <option value="Japanese">Japanese</option>
+                      <option value="Thai">Thai</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={handleCreateRestaurant}
+                    disabled={!newRestaurantName.trim() || creatingRestaurant}
+                    className="w-full py-3 rounded-xl font-bold text-white text-sm disabled:opacity-50 transition-all hover:opacity-90"
+                    style={{ background: "linear-gradient(135deg,#E8360A,#FF9F1C)" }}
+                  >
+                    {creatingRestaurant ? "Creating..." : "Create Restaurant"}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -510,12 +607,19 @@ export default function UploadPage() {
             </div>
 
             <div
-              className="rounded-2xl p-5 flex items-center justify-between mb-6 border-2"
+              className="rounded-2xl p-5 flex items-center justify-between mb-4 border-2"
               style={{ background: "#FDE8D0", borderColor: "rgba(232,54,10,0.15)" }}
             >
               <span className="text-[#4A2E1A] font-bold text-sm">Total Amount</span>
               <span className="font-display font-black text-2xl text-[#E8360A]">₹{billTotal}</span>
             </div>
+
+            {emptyBillError && (
+              <div className="mb-4 p-4 rounded-2xl flex items-center gap-3 border-2 text-red-700" style={{ background: "#FEE2E2", borderColor: "rgba(239,68,68,0.2)" }}>
+                <AlertCircle size={18} className="flex-shrink-0" />
+                <p className="text-sm font-semibold">{emptyBillError}</p>
+              </div>
+            )}
 
             <button
               onClick={handleRate}
